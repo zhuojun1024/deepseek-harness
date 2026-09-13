@@ -1515,7 +1515,7 @@ describe('ConversationNodeAssembler', () => {
     )).toThrow(/Definition "undefined-update" returned undefined from update/)
   })
 
-  it('rejects a duplicate start before mutating the existing Context', () => {
+  it('ignores a duplicate start and keeps the first start', () => {
     const definition: ConversationNodeDefinition<number> = {
       kind: 'single-start',
       match: event => (event.type as string) === 'command/run' ? { id: 'one', role: 'start' } : null,
@@ -1533,10 +1533,40 @@ describe('ConversationNodeAssembler', () => {
     ], false)
     assembler.flush()
 
-    expect(() => assembler.append(
+    // A provider that reuses the business id (a repeated tool call id) must
+    // not abort the feed: the duplicate start is ignored, the first start
+    // wins, and later updates still fold into the surviving Context.
+    expect(assembler.append(
       input(at(SessionSeq(2), 'command/run', { commandId: 'two', name: 'x' })),
-    )).toThrow(/received more than one start Match/)
+    )).toBe('none')
+    assembler.append(input(at(SessionSeq(3), 'command/done', { commandId: 'two', kind: 'success' })))
     assembler.flush()
-    expect([...testSnapshot(assembler)?.nodes.values() ?? []][0]?.data).toBe(1)
+    const nodes = [...testSnapshot(assembler)?.nodes.values() ?? []]
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0]?.data).toBe(1)
+  })
+
+  it('keeps the earliest start when a window holds duplicate starts', () => {
+    const definition: ConversationNodeDefinition<number> = {
+      kind: 'single-start',
+      match: event => (event.type as string) === 'command/run' ? { id: 'one', role: 'start' } : null,
+      start: (_context, match) => match.event.seq,
+      update: context => context.state,
+      target: 'test',
+      buildViewNode: context => node(context, context.state),
+    }
+    const assembler = new ConversationNodeAssembler(
+      new TestEventDefinitions([definition]),
+      new TestViewDefinitions([testView()]),
+    )
+    assembler.replaceWindow([
+      input(at(SessionSeq(1), 'command/run', { commandId: 'one', name: 'x' })),
+      input(at(SessionSeq(2), 'command/run', { commandId: 'two', name: 'x' })),
+      input(at(SessionSeq(3), 'command/done', { commandId: 'two', kind: 'success' })),
+    ], false)
+    assembler.flush()
+    const nodes = [...testSnapshot(assembler)?.nodes.values() ?? []]
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0]?.data).toBe(1)
   })
 })

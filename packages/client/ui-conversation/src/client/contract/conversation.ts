@@ -193,9 +193,12 @@ export interface ConversationNodeDefinition<State = unknown> {
    */
   match(event: SessionEventLike): ConversationMatchResult | null
   /**
-   * Create State from the unique start Match.
+   * Create State from the Context's first start Match. A later event that
+   * re-derives the same business id as a start (a provider reusing a tool
+   * call id) is ignored by the engine: the first start wins, and this
+   * function is not called again for the Context.
    * @param context - complete evidence currently collected for the Context.
-   * @param match - the start Match.
+   * @param match - the first start Match.
    * @param reader - strictly-backward read-only Context lookup.
    * @returns the State adopted by the engine.
    */

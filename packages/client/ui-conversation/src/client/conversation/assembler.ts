@@ -509,9 +509,11 @@ export class ConversationNodeAssembler implements ConversationViewSnapshotStore 
   ): ConversationPublication {
     const key = conversationContextKey(definition.kind, id)
     let context = this.contexts.get(key)
-    if (role === 'start' && context?.start !== undefined) {
-      throw new Error(`conversation Context ${key} received more than one start Match`)
-    }
+    // A provider that reuses a business id across distinct lifecycles (a
+    // repeated tool call id) re-starts the Context instead of aborting the
+    // whole feed: the first start wins, the duplicate is ignored, and the
+    // Context replays from the first start over the surviving matches.
+    if (role === 'start' && context?.start !== undefined) return 'none'
     context ??= this.createContext(definition, id, key)
     const match = conversationMatch(
       key,
@@ -565,10 +567,11 @@ export class ConversationNodeAssembler implements ConversationViewSnapshotStore 
             throw new Error(`conversation Context ${key} received inconsistent Definition identity`)
           }
           if (entry.match.role === 'start') {
-            if (discoveredStart !== undefined || context.start !== undefined) {
-              throw new Error(`conversation Context ${key} received more than one start Match`)
+            // Duplicate starts in one batch keep the earliest and ignore the
+            // rest, mirroring the live append path's re-start tolerance.
+            if (discoveredStart === undefined && context.start === undefined) {
+              discoveredStart = entry.match
             }
-            discoveredStart = entry.match
           }
           const owners = this.contextsBySeq.get(entry.match.event.seq) ?? new Set<InternalContext>()
           owners.add(context)
