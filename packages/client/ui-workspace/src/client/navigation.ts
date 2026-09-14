@@ -134,6 +134,11 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   openSession(sessionId: SessionId): void {
     this.sessions.open(sessionId)
     this.ctx.layout.selectPanel(null)
+    // A user-initiated navigation owns the full width: the sidebar yields its
+    // track (wide: closed; narrow: collapsed, so the H5 rail/header-expand
+    // affordance is the way back). The startup auto-reconcile opens through
+    // sessions.open directly and never reaches here, so it does not close.
+    this.ctx.layout.collapseSidebar()
   }
 
   async openWorkspace(workspaceId: WorkspaceId, beforeOpen?: (sessionId: SessionId) => void): Promise<void> {
@@ -165,6 +170,10 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     if (target === undefined) {
       this.sessions.clear()
       this.ctx.layout.selectPanel(null)
+      // The blank hero has no session header to host an expand control, so the
+      // narrow frame keeps its 56px rail as the way back; collapsing only drops
+      // the wide track (or the narrow expansion override) to that resting state.
+      this.ctx.layout.collapseSidebar()
       return
     }
     void this.openWorkspace(target).catch(

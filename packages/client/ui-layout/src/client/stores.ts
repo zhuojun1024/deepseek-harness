@@ -67,6 +67,7 @@ type LayoutActions = {
   retainMainPanels: (draft: LayoutState, panelIds: readonly string[]) => void
   setSidebar: (draft: LayoutState, px: number) => void
   toggleSidebar: (draft: LayoutState) => void
+  collapseSidebar: (draft: LayoutState) => void
   setHeaderVisible: (draft: LayoutState, visible: boolean) => void
   setViewportWidth: (draft: LayoutState, width: number) => void
   setRightbar: (draft: LayoutState, px: number) => void
@@ -118,6 +119,17 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
         d.layoutInfo.rightbarInstant = false
         if (d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) d.layoutInfo.narrowExpanded = !d.layoutInfo.narrowExpanded
         else d.layoutInfo.sidebar = d.layoutInfo.sidebar === 0 ? SIDEBAR_DEFAULT : 0
+      },
+      // One-way collapse for user-initiated session navigation, narrow frames
+      // only: the sidebar yields its track so the conversation owns the full
+      // width. A wide frame keeps its pre-navigation sidebar state (the PC
+      // behavior). Idempotent — immer returns the base state when the override
+      // is already dropped, so a repeated call keeps the snapshot reference.
+      collapseSidebar: (d) => {
+        if (d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) {
+          d.layoutInfo.rightbarInstant = false
+          d.layoutInfo.narrowExpanded = false
+        }
       },
       // The conversation reports its header's visibility; nothing else writes
       // it. It is chrome state, not a geometry preference, so it resets no

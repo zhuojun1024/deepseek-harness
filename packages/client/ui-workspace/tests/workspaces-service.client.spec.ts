@@ -194,10 +194,11 @@ function bench(options: BenchOptions = {}) {
   const ctx = new Context()
   const layout = new LayoutController({
     selectPanel: vi.fn(), retainMainPanels: vi.fn(),
-    setSidebar: vi.fn(), toggleSidebar: vi.fn(), setHeaderVisible: vi.fn(), setViewportWidth: vi.fn(),
+    setSidebar: vi.fn(), toggleSidebar: vi.fn(), collapseSidebar: vi.fn(), setHeaderVisible: vi.fn(), setViewportWidth: vi.fn(),
     setRightbar: vi.fn(), openRightbar: vi.fn(), closeRightbar: vi.fn(),
   }, () => true)
   const selectPanel = vi.spyOn(layout, 'selectPanel')
+  const collapseSidebar = vi.spyOn(layout, 'collapseSidebar')
   ctx.provide('layout', layout)
   ctx.effect(() => () => { layout.dispose() })
   const directoryPicker = new FakeDirectoryPicker()
@@ -209,7 +210,7 @@ function bench(options: BenchOptions = {}) {
     workspaces,
     sessions as unknown as ISessions,
   )
-  return { ctx, directoryPicker, sessions, uiWorkspace, workspaces, layout, selectPanel }
+  return { ctx, directoryPicker, sessions, uiWorkspace, workspaces, layout, selectPanel, collapseSidebar }
 }
 
 async function flush(): Promise<void> {
@@ -228,6 +229,18 @@ describe('UiWorkspaceService', () => {
     expect(b.sessions.open).toHaveBeenCalledWith(current)
     expect(b.selectPanel).toHaveBeenCalledWith(null)
     expect(b.sessions.open.mock.invocationCallOrder[0]).toBeLessThan(b.selectPanel.mock.invocationCallOrder[0]!)
+  })
+
+  it('collapses the sidebar when a user opens or starts a Session', () => {
+    const b = bench({ sessions: sessionState([summary('current')], sid('current')) })
+    b.uiWorkspace.openSession(sid('current'))
+    expect(b.collapseSidebar).toHaveBeenCalledOnce()
+
+    // New Session with no Workspace falls through to the blank-hero clear path.
+    const empty = bench()
+    empty.uiWorkspace.startSession()
+    expect(empty.sessions.clear).toHaveBeenCalledOnce()
+    expect(empty.collapseSidebar).toHaveBeenCalledOnce()
   })
 
   it('keeps the current panel when selecting a Session throws', () => {

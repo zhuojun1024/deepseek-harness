@@ -54,6 +54,37 @@ describe('createLayoutStore', () => {
     expect(store.getSnapshot().layoutInfo.sidebar).toBe(280)
   })
 
+  it('leaves a wide sidebar untouched by a navigation collapse', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.setSidebar(400)
+    actions.collapseSidebar()
+    // A wide frame keeps its pre-navigation sidebar state (the PC behavior):
+    // the drag width survives and the narrow override is not involved.
+    expect(store.getSnapshot().layoutInfo.sidebar).toBe(400)
+    expect(store.getSnapshot().layoutInfo.narrowExpanded).toBe(false)
+  })
+
+  it('collapses the narrow sidebar by dropping the expansion override', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.setViewportWidth(980)
+    actions.toggleSidebar()
+    expect(store.getSnapshot().layoutInfo.narrowExpanded).toBe(true)
+    actions.collapseSidebar()
+    expect(store.getSnapshot().layoutInfo).toMatchObject({ narrowExpanded: false, sidebar: 280 })
+  })
+
+  it('keeps the snapshot reference when collapsing an already-collapsed narrow sidebar', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.setViewportWidth(980)
+    actions.collapseSidebar()
+    const collapsed = store.getSnapshot()
+    expect(collapsed.layoutInfo.narrowExpanded).toBe(false)
+    // Idempotent: a second call writes no value, so immer returns the base
+    // state and the store keeps its reference (no re-render for the caller).
+    actions.collapseSidebar()
+    expect(store.getSnapshot()).toBe(collapsed)
+  })
+
   it('reports the header visibility without touching a transition flag', () => {
     const { store, actions } = createLayoutStore().create()
     actions.setViewportWidth(980)

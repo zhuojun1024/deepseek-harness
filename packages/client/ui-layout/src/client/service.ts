@@ -55,6 +55,13 @@ export interface ILayout {
   /** Toggle the sidebar panel (closed ⟷ contract default width). */
   toggleSidebar(): void
   /**
+   * Collapse the sidebar one-way so a user-initiated session navigation owns
+   * the full width. Narrow frames only: a wide frame keeps its pre-navigation
+   * sidebar state. Idempotent: a sidebar already collapsed is left untouched
+   * (the store keeps its snapshot reference), so the call is safe to repeat.
+   */
+  collapseSidebar(): void
+  /**
    * Report whether the current Session's header is drawn. On a narrow frame
    * the frame keeps the collapsed sidebar's rail only while the header is
    * hidden (the blank Hero has no top bar to host the expand control).
@@ -110,6 +117,11 @@ export class LayoutController implements ILayout {
   /** Toggle the sidebar panel (closed ⟷ contract default width). */
   toggleSidebar(): void {
     this.panels.toggleSidebar()
+  }
+
+  /** Collapse the sidebar one-way for a user-initiated session navigation (narrow frames only). */
+  collapseSidebar(): void {
+    this.panels.collapseSidebar()
   }
 
   /** Report the current Session header's visibility to the frame. */
