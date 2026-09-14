@@ -29,6 +29,49 @@
   border-right: 0.5px solid var(--dsw-alias-border-l3);
 }
 
+/* A narrow frame's expanded sidebar floats over the center as a drawer
+   instead of reserving a track: the scrim dims the center and closes the
+   drawer on tap, and the drawer rides above the overlay layer (z-index 20). */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  background: var(--dsw-alias-bg-mask-2);
+  animation: scrimIn var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+}
+
+.floatingSidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 30;
+  background: var(--dsw-specific-sidebar-fill);
+  border-right: 0.5px solid var(--dsw-alias-border-l3);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  /* Slides in from the left edge when it mounts (opens); closing unmounts it
+     while the rail track regrows, so only the open direction animates. */
+  animation: drawerIn var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+}
+
+@keyframes drawerIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes scrimIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floatingSidebar,
+  .scrim {
+    animation: none;
+  }
+}
+
 .centerCol {
   min-width: 0;
   display: flex;

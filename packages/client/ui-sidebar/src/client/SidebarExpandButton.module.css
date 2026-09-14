@@ -1,0 +1,29 @@
+/*
+ * Sits in the conversation header's leading seat, before the Session
+ * breadcrumb title. The same icon button as the sidebar's own rail toggle:
+ * a 28px circle around a 15px glyph, un-mirrored (the panel opens to the
+ * left, the sidebar's natural edge).
+ */
+.button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 28px;
+  cursor: pointer;
+}
+
+.button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}

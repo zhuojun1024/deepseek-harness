@@ -159,6 +159,13 @@ export function AppFrame({
 
   const narrow = viewport < SIDEBAR_AUTO_COLLAPSE
   const sidebarCollapsed = narrow ? !layoutInfo.narrowExpanded : layoutInfo.sidebar === 0
+  // A narrow frame with the sidebar expanded draws it as a floating drawer
+  // over the center instead of reserving a track that squeezes the center.
+  const narrowFloating = narrow && !sidebarCollapsed
+  // A narrow frame with the sidebar collapsed AND the header drawn hides the
+  // 56px rail entirely: the rail's own toggle is gone, so the header's expand
+  // control is the only way back in. The blank Hero (no header) keeps the rail.
+  const narrowHidden = narrow && sidebarCollapsed && layoutInfo.headerVisible
   const sidebarPreference = sidebarCollapsed
     ? 0
     : layoutInfo.sidebar === 0 ? SIDEBAR_DEFAULT : layoutInfo.sidebar
@@ -166,7 +173,13 @@ export function AppFrame({
   // Opening on a narrow frame collapses the left sidebar. Eligibility must
   // include that space before the occupant's first shown report arrives.
   const normal = computeColumns(viewport, !layoutInfo.rightbarShown && narrow ? 0 : sidebarPreference, rightbarPreference)
-  const cols = computeColumns(viewport, sidebarPreference, layoutInfo.rightbarTrack ? rightbarPreference : 0)
+  const baseCols = computeColumns(viewport, sidebarPreference, layoutInfo.rightbarTrack ? rightbarPreference : 0)
+  // The drawer floats over a full-width center, and the hidden rail yields its
+  // track too: both collapse the sidebar track to zero.
+  const sidebarTrackZero = narrowFloating || narrowHidden
+  const cols = sidebarTrackZero
+    ? { sidebar: 0, center: viewport - baseCols.rightbar, rightbar: baseCols.rightbar }
+    : baseCols
   const colsRef = useRef(cols)
   colsRef.current = cols
   const rightbarWidth = useRef(normal.rightbar)
@@ -192,8 +205,8 @@ export function AppFrame({
   const productTitle = process.env.DSH_CLIENT_TITLE ?? t('brand.localBuild')
   const sidebar = useMemo(() => renderSlot('sidebar', {
     collapsed: sidebarCollapsed,
-    width: cols.sidebar,
-  }), [renderSlot, sidebarCollapsed, cols.sidebar])
+    width: narrowFloating ? sidebarPreference : cols.sidebar,
+  }), [renderSlot, sidebarCollapsed, narrowFloating, sidebarPreference, cols.sidebar])
   const main = useMemo(() => (
     <MainPanel usePanelInfo={usePanelInfo} renderSlot={renderSlot} />
   ), [usePanelInfo, renderSlot])
@@ -219,7 +232,7 @@ export function AppFrame({
         usePanelInfo={usePanelInfo}
       />
       <div className={css.sidebarCol}>
-        {sidebar}
+        {!narrowFloating && !narrowHidden && sidebar}
       </div>
       <>
         <CenterColumn>{main}</CenterColumn>
@@ -227,11 +240,20 @@ export function AppFrame({
           {renderSlot('rightbar', { width: normal.rightbar, viewportWidth: viewport, canShow: normal.rightbar > 0 })}
         </RightbarColumn>
       </>
+      {narrowFloating && (
+        <>
+          <div className={css.scrim} data-testid="sidebar-scrim" onClick={() => actions.toggleSidebar()} />
+          <div className={css.floatingSidebar} data-testid="sidebar-drawer" style={{ width: sidebarPreference }}>
+            {sidebar}
+          </div>
+        </>
+      )}
       <div className={css.overlayLayer} data-shell-overlay>
         {overlays}
       </div>
-      {/* The collapsed rail is fixed-width: no resize handle while closed. */}
-      {!sidebarCollapsed && <DragHandle side="sidebar" left={cols.sidebar} onStart={onSidebarStart} onDrag={onSidebarDrag} onEnd={onDragEnd} />}
+      {/* The collapsed rail is fixed-width: no resize handle while closed. The
+          floating drawer is not resizable on a narrow frame. */}
+      {!sidebarCollapsed && !narrowFloating && <DragHandle side="sidebar" left={cols.sidebar} onStart={onSidebarStart} onDrag={onSidebarDrag} onEnd={onDragEnd} />}
       {layoutInfo.rightbarShown && !layoutInfo.rightbarFullscreen && normal.rightbar > 0 && (
         <DragHandle side="rightbar" left={viewport - normal.rightbar} onStart={onRightbarStart} onDrag={onRightbarDrag} onEnd={onDragEnd} />
       )}

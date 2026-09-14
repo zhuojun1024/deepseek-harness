@@ -16,6 +16,7 @@ describe('createLayoutStore', () => {
         sidebar: 280,
         viewportWidth: 1920,
         narrowExpanded: false,
+        headerVisible: false,
         rightbar: null,
         rightbarShown: false,
         rightbarTrack: false,
@@ -51,6 +52,22 @@ describe('createLayoutStore', () => {
     expect(store.getSnapshot().layoutInfo.sidebar).toBe(0)
     actions.toggleSidebar()
     expect(store.getSnapshot().layoutInfo.sidebar).toBe(280)
+  })
+
+  it('reports the header visibility without touching a transition flag', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.setViewportWidth(980)
+    actions.toggleSidebar()
+    expect(store.getSnapshot().layoutInfo).toMatchObject({ narrowExpanded: true, headerVisible: false })
+    actions.setHeaderVisible(true)
+    expect(store.getSnapshot().layoutInfo).toMatchObject({ narrowExpanded: true, headerVisible: true })
+    // A repeated identical report keeps the snapshot reference (chrome state,
+    // not a geometry preference).
+    const reported = store.getSnapshot()
+    actions.setHeaderVisible(true)
+    expect(store.getSnapshot()).toBe(reported)
+    actions.setHeaderVisible(false)
+    expect(store.getSnapshot().layoutInfo.headerVisible).toBe(false)
   })
 
   it('keeps the sidebar preference while toggling its narrow override', () => {

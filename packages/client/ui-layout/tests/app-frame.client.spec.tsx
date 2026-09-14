@@ -91,6 +91,9 @@ function mountFrame(windowWidth = frameWidth) {
     getSnapshot: () => instance.getSnapshot().panelInfo,
     subscribe: listener => instance.subscribe(listener),
   })
+  // The frame reads layoutInfo from useStore; the standard sidebar hook rides
+  // the props share unused, so a constant stub satisfies the type.
+  const useSidebarInfo: GlobalStandardProps['useSidebarInfo'] = selector => selector({ narrow: false, collapsed: false, headerVisible: false })
   const element = () => (
     <AppFrame
       useStore={useStore}
@@ -98,6 +101,7 @@ function mountFrame(windowWidth = frameWidth) {
       renderSlot={renderSlot}
       useSessions={useSessions}
       usePanelInfo={usePanelInfo}
+      useSidebarInfo={useSidebarInfo}
       useSessionPendingInteraction={useSessionPendingInteraction}
       useResource={useResource}
       useWorkspaces={sel => sel(workspaceState)}
@@ -285,7 +289,8 @@ describe('AppFrame normal width concessions', () => {
     frameWidth = 800
     const { frame, instance, rightOwner } = mountFrame()
     act(() => { instance.actions.toggleSidebar() })
-    expect(tracks(frame)).toEqual([280, 0])
+    // Expanded while narrow, the sidebar floats: its track collapses to zero.
+    expect(tracks(frame)).toEqual([0, 0])
     expect(rightOwner()).toEqual({ width: 344, viewportWidth: 800, canShow: true })
     act(() => { instance.actions.openRightbar(true, false) })
     expect(tracks(frame)).toEqual([56, 344])
@@ -315,13 +320,38 @@ describe('AppFrame normal width concessions', () => {
     resize(1023)
     expect(tracks(frame)[0]).toBe(56)
     act(() => { instance.actions.toggleSidebar() })
-    expect(tracks(frame)[0]).toBe(400)
+    // Expanded below 1024px the sidebar floats over the center: track 0.
+    expect(tracks(frame)[0]).toBe(0)
     resize(980)
-    expect(tracks(frame)[0]).toBe(400)
+    expect(tracks(frame)[0]).toBe(0)
     act(() => { instance.actions.toggleSidebar() })
     expect(tracks(frame)[0]).toBe(56)
     resize(1920)
     expect(tracks(frame)[0]).toBe(400)
+  })
+
+  it('floats the expanded sidebar as a drawer over a full-width center while narrow', () => {
+    const { frame, instance, sidebarOwner, getByTestId, queryByTestId } = mountFrame()
+    resize(980)
+    expect(queryByTestId('sidebar-drawer')).toBeNull()
+    act(() => { instance.actions.toggleSidebar() })
+    // Track collapses to zero so the center keeps the full frame width.
+    expect(tracks(frame)[0]).toBe(0)
+    expect(sidebarOwner()).toEqual({ collapsed: false, width: 280 })
+    const drawer = getByTestId('sidebar-drawer')
+    expect(drawer).toBeTruthy()
+    expect(drawer.style.width).toBe('280px')
+    expect(drawer.contains(getByTestId('sidebar-content'))).toBe(true)
+    // The rail track no longer hosts the sidebar; the drawer does.
+    expect(frame.querySelector('[data-side="sidebar"]')).toBeNull()
+    // Tapping the scrim closes the drawer and regrows the rail track.
+    act(() => { getByTestId('sidebar-scrim').dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    expect(queryByTestId('sidebar-drawer')).toBeNull()
+    expect(tracks(frame)[0]).toBe(56)
+    // A wide frame never floats: the expanded sidebar keeps its track.
+    resize(1920)
+    expect(queryByTestId('sidebar-drawer')).toBeNull()
+    expect(tracks(frame)[0]).toBe(280)
   })
 
   it('re-expands a wide-closed sidebar at the default width while narrow', () => {
@@ -329,8 +359,37 @@ describe('AppFrame normal width concessions', () => {
     act(() => { instance.actions.toggleSidebar() })
     resize(980)
     act(() => { instance.actions.toggleSidebar() })
-    expect(tracks(frame)[0]).toBe(280)
+    // The re-expanded sidebar floats at its default width; the track is zero.
+    expect(tracks(frame)[0]).toBe(0)
     expect(instance.getSnapshot().layoutInfo.sidebar).toBe(0)
+  })
+
+  it('hides the collapsed rail while narrow once the header is drawn', () => {
+    const { frame, instance, sidebarOwner, getByTestId, queryByTestId } = mountFrame()
+    // Start wide with the sidebar closed: the 56px rail, header not yet drawn.
+    act(() => { instance.actions.toggleSidebar() })
+    expect(tracks(frame)[0]).toBe(56)
+    // Narrow the frame: the closed preference stays the collapsed rail, and
+    // the header is hidden (the blank Hero), so the rail keeps its track and
+    // its own toggle.
+    resize(980)
+    expect(tracks(frame)[0]).toBe(56)
+    expect(sidebarOwner()).toEqual({ collapsed: true, width: 56 })
+    expect(getByTestId('sidebar-content')).toBeTruthy()
+    // The header reports itself drawn: the rail yields its track entirely so
+    // the header's expand control is the only way back into the sidebar.
+    act(() => { instance.actions.setHeaderVisible(true) })
+    expect(tracks(frame)[0]).toBe(0)
+    expect(queryByTestId('sidebar-content')).toBeNull()
+    // The header unmounts (a global panel): the rail regrows with no header to
+    // host the button.
+    act(() => { instance.actions.setHeaderVisible(false) })
+    expect(tracks(frame)[0]).toBe(56)
+    expect(getByTestId('sidebar-content')).toBeTruthy()
+    // A wide frame never hides the rail: the collapsed sidebar keeps its track.
+    resize(1920)
+    act(() => { instance.actions.setHeaderVisible(true) })
+    expect(tracks(frame)[0]).toBe(56)
   })
 })
 

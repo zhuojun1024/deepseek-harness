@@ -46,7 +46,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /** Services required by the Conversation plugin. */
 export const inject = [
-  'slots', 'sessions', 'fileUpload', 'uiSession', 'uiWorkspace', 'locale', 'settingsScope',
+  'slots', 'sessions', 'fileUpload', 'uiSession', 'uiWorkspace', 'locale', 'settingsScope', 'layout',
 ]
 
 /** Conversation runtime configuration. */
@@ -300,6 +300,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
     name: 'conversation.session.header',
     locale: NS,
     children: {
+      'conversation.session.header.leading': { kind: 'single', scope: 'session' },
       'conversation.session.header.lineage': { kind: 'single', scope: 'session' },
       'conversation.session.header.actions': { kind: 'list', scope: 'session' },
       'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
@@ -313,6 +314,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
         activateView(sessionId, view)
         actions.setView(view)
       },
+      setHeaderVisible: (visible) => { ctx.layout.setHeaderVisible(visible) },
     }),
   }, ConversationSessionHeader)
 

@@ -8,6 +8,7 @@ import { apply, inject } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { SidebarRootInjected } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { apply as hostApply } from '../src/index.ts'
+import { SidebarExpandButton } from '../src/client/SidebarExpandButton.tsx'
 
 const owners = new Set<Fiber>()
 afterEach(async () => {
@@ -129,6 +130,28 @@ describe('ui-sidebar apply', () => {
       await panel.dispose()
       await sidebar.dispose()
     }
+  })
+
+  it('registers the header leading seat as the way back into a hidden sidebar', async () => {
+    const b = await bench()
+    // The conversation declares the leading seat; the sidebar contributes the
+    // expand button into it. Declare it session-scoped, as the header does.
+    b.slots.register({
+      name: 'main', key: 'conversation',
+      children: { 'conversation.session.header.leading': { kind: 'single', scope: 'session' } },
+    }, (_props: PropsRenderSlots<'conversation.session.header.leading'>) => null)
+    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const entry = b.slots.entries('conversation.session.header.leading')[0]!
+    expect(entry.component).toBe(SidebarExpandButton)
+    expect(entry.locale).toBe('sidebar')
+    // The injected share is the layout toggle, not a store or a hook.
+    const injected = (entry.inject as () => { toggleSidebar: () => void })()
+    expect(Object.keys(injected)).toEqual(['toggleSidebar'])
+    injected.toggleSidebar()
+    expect(b.layout.toggleSidebar).toHaveBeenCalledOnce()
+    await fiber.dispose()
+    expect(b.slots.entries('conversation.session.header.leading')).toHaveLength(0)
   })
 
   it('removes the entry and child declaration on teardown', async () => {

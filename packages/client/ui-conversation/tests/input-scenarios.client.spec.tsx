@@ -140,6 +140,7 @@ async function scopedBench(register?: (inputTriggers: InputTriggerService) => vo
   const sessionStore = createSnapshotStore<SessionSnapshot>(sessionSnapshot(sessionId))
   const barProps: InputBarProps = {
     usePanelInfo: selector => selector({ activePanelId: null }),
+    useSidebarInfo: selector => selector({ narrow: false, collapsed: false, headerVisible: false }),
     sessionId,
     SessionProvider: ({ children }) => children,
     useSession: bindSnapshotSelector(sessionStore),

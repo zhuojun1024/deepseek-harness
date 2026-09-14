@@ -58,7 +58,7 @@ function equalBreadcrumbs(left: readonly Breadcrumb[], right: readonly Breadcrum
  */
 export function ConversationSessionHeader({
   sessionId, useSession, useSessions, useConversation, useConversationViews, useStore,
-  renderSlot, open, selectView, t,
+  renderSlot, open, selectView, setHeaderVisible, t,
 }: ConversationSessionHeaderProps) {
   const tabs = useConversationViews(value => value)
   const selectedId = useStore(s => s.view)
@@ -67,6 +67,17 @@ export function ConversationSessionHeader({
   const session = useSession(s => s)
   const conversation = useConversation(s => s)
   const hideChrome = session.blank && conversationPhase(session, conversation) === 'blank'
+
+  // The header reports its own visibility to the frame: on a narrow frame the
+  // frame keeps the collapsed sidebar's rail only while this header is hidden
+  // (the blank Hero), and yields the rail's track once the header is drawn so
+  // the header's expand control is the only way back into the sidebar. The
+  // unmount reports false so a global panel (no conversation header) keeps the
+  // rail rather than hiding it with no header left to host the button.
+  useEffect(() => {
+    setHeaderVisible(!hideChrome)
+    return () => { setHeaderVisible(false) }
+  }, [hideChrome, setHeaderVisible])
 
   return (
     <header
@@ -77,6 +88,9 @@ export function ConversationSessionHeader({
         <>
           <div className={css.titleRow}>
             <div className={css.titleCluster}>
+              <div className={css.headerLeading}>
+                {renderSlot('conversation.session.header.leading', {})}
+              </div>
               <nav className={css.crumbs} aria-label={t('session.hierarchy')}>
                 {ancestry.map((summary, index) => {
                   const last = index === ancestry.length - 1

@@ -121,6 +121,34 @@ describe('ui-layout client apply', () => {
     expect(pending.aborted).toBe(true)
   })
 
+  it('derives sidebarInfo from the store and keeps it memoized across unrelated writes', async () => {
+    const { ctx, slots, rendererHost } = await bench()
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const host = rendererHost()
+    const sidebarInfo = host.root.getSnapshot().hooks.sidebarInfo!
+    // Wide frame, sidebar open, header hidden (the default).
+    expect(sidebarInfo.getSnapshot()).toEqual({ narrow: false, collapsed: false, headerVisible: false })
+    // A repeated read returns the same reference (memoized over the snapshot).
+    expect(sidebarInfo.getSnapshot()).toBe(sidebarInfo.getSnapshot())
+    const layout = ctx.get('layout') as LayoutController
+    const entry = slots.entries('root')[0]!
+    const instance = (entry.store as ReturnType<typeof createLayoutStore>).create()
+    // Narrow the frame: the sidebar auto-collapses, so collapsed becomes true.
+    instance.actions.setViewportWidth(980)
+    layout.setHeaderVisible(true)
+    expect(sidebarInfo.getSnapshot()).toEqual({ narrow: true, collapsed: true, headerVisible: true })
+    // A panel selection is unrelated to the sidebar: the derived reference holds.
+    const before = sidebarInfo.getSnapshot()
+    layout.selectPanel(null)
+    expect(sidebarInfo.getSnapshot()).toBe(before)
+    // Expanding the sidebar while narrow flips collapsed to false.
+    layout.toggleSidebar()
+    expect(sidebarInfo.getSnapshot()).toEqual({ narrow: true, collapsed: false, headerVisible: true })
+    await fiber.dispose()
+    expect(host.root.getSnapshot().hooks.sidebarInfo).toBeUndefined()
+  })
+
   it('theme presenter applies the initial snapshot, follows theme/change, and unwinds on dispose', async () => {
     const { ctx } = await bench()
     const fiber = ctx.plugin({ inject: [...inject], apply })
@@ -152,6 +180,7 @@ describe('ui-layout client apply', () => {
     await fiber.await()
     const host = rendererHost()
     expect(host.root.getSnapshot().hooks.panelInfo).toBeDefined()
+    expect(host.root.getSnapshot().hooks.sidebarInfo).toBeDefined()
     await fiber.dispose()
     expect(ctx.get('layout')).toBeUndefined()
     expect(slots.entries('root')).toHaveLength(0)
@@ -160,6 +189,7 @@ describe('ui-layout client apply', () => {
     expect(slots.spec('rightbar')).toBeUndefined()
     expect(slots.spec('shell.overlay')).toBeUndefined()
     expect(host.root.getSnapshot().hooks.panelInfo).toBeUndefined()
+    expect(host.root.getSnapshot().hooks.sidebarInfo).toBeUndefined()
     // The built-in root declaration survives entry teardown (renderer-owned).
     expect(slots.spec('root')).toEqual({ kind: 'single', scope: 'root' })
   })

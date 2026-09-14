@@ -123,6 +123,17 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.session': { kind: 'single'; scope: 'session' }
     /** Strict per-Session title, actions, and View navigation. */
     'conversation.session.header': { kind: 'single'; scope: 'session' }
+    /**
+     * The header's leading seat, before the Session breadcrumb title, for one
+     * control. Laid out only while its occupant renders something; an occupant
+     * with nothing to show renders nothing and the title takes the header's
+     * left edge. Hosts the sidebar's expand button on a narrow frame.
+     */
+    'conversation.session.header.leading': {
+      kind: 'single'
+      scope: 'session'
+      owner: ConversationHeaderLeadingOwnerProps
+    }
     /** Optional replacement for one Session breadcrumb title. */
     'conversation.session.header.lineage': {
       kind: 'single'
@@ -216,6 +227,12 @@ export interface HeroAgentPresetOwnerProps {
   children?: never
 }
 
+/** The header's leading occupant derives its state from standard Session props. */
+export interface ConversationHeaderLeadingOwnerProps {
+  /** Marker field: the occupant receives no owner-specific values. */
+  children?: never
+}
+
 /** Header actions derive their state from standard Session props. */
 export interface ConversationHeaderActionOwnerProps {
   /** Marker field: entries receive no owner-specific values. */
@@ -283,6 +300,12 @@ export interface ConversationSessionHeaderInjected {
   open: (sessionId: SessionId) => void
   /** Select and activate one registered Conversation View. */
   selectView: (view: string) => void
+  /**
+   * Report whether this header is drawn, so the frame knows whether the
+   * collapsed sidebar keeps its rail (header hidden) or yields its track
+   * (header drawn, on a narrow frame). Written only by the header itself.
+   */
+  setHeaderVisible: (visible: boolean) => void
 }
 
 /** Owner share of the resident composer bar. */
@@ -391,7 +414,8 @@ export type ConversationSessionSlotProps =
 export type ConversationSessionHeaderSlotProps =
   PropsRuntime<'conversation.session.header'>
   & PropsRenderSlots<
-    'conversation.session.header.lineage'
+    'conversation.session.header.leading'
+    | 'conversation.session.header.lineage'
     | 'conversation.session.header.actions'
     | 'conversation.session.header.utilities'
     | 'conversation.session.header.corner'

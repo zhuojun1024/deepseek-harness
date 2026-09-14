@@ -49,6 +49,7 @@ async function bench() {
     return upload(...args)
   }
   runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+  runtime.ctx.provide('layout', { setHeaderVisible: vi.fn() } as never)
   const connectWorkspace = vi.fn(async () => ROOT)
   runtime.ctx.provide('uiWorkspace', {
     openWorkspace: async (_workspaceId: WorkspaceId, beforeOpen: (id: SessionId) => void) => {

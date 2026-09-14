@@ -41,6 +41,7 @@ function mount() {
   const setBusyEnter = vi.fn((behavior: 'queue' | 'steer') => { policy.setBusyEnter(behavior) })
   const props: EnterBehaviorRowProps = {
     usePanelInfo: selector => selector({ activePanelId: null }),
+    useSidebarInfo: selector => selector({ narrow: false, collapsed: false, headerVisible: false }),
     useSessions: emptySessions(),
     useSessionPendingInteraction: noPendingInteraction(),
     useResource,

@@ -17,6 +17,7 @@ import { zh } from '../src/client/locales.ts'
 // Every fixture carries the resource hook the resources plugin merges into GlobalStandardProps.
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
 const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({ activePanelId: null })
+const useSidebarInfo: GlobalStandardProps['useSidebarInfo'] = selector => selector({ narrow: false, collapsed: false, headerVisible: false })
 
 afterEach(cleanup)
 
@@ -99,7 +100,7 @@ function mount(
       anchorRef={anchorRef}
       useSessions={hook(sessions)}
       useSessionPendingInteraction={hook(noPendingInteraction)}
-      usePanelInfo={usePanelInfo} useResource={useResource}
+      usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} useResource={useResource}
       useWorkspaces={hook(workspaceState(nextItems))}
       onPick={onPick}
       onClose={onClose}
@@ -221,7 +222,7 @@ describe('WorkspacePicker', () => {
       <WorkspacePicker
         open useSessions={hook(sessions)} useWorkspaces={hook(workspaceState([workspace('alpha', 'Alpha')]))}
         useSessionPendingInteraction={hook(noPendingInteraction)}
-        usePanelInfo={usePanelInfo} useResource={useResource}
+        usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} useResource={useResource}
         onPick={vi.fn()} onClose={vi.fn()} createWorkspace={vi.fn()}
         useDirectoryFlow={occupancySource().useDirectoryFlow} renderSlot={renderSlot} t={t}
       />,
@@ -238,7 +239,7 @@ describe('WorkspacePicker', () => {
       <WorkspacePicker
         open anchorRef={anchor()} useSessions={hook(sessions)} useWorkspaces={hook(state)}
         useSessionPendingInteraction={hook(noPendingInteraction)}
-        usePanelInfo={usePanelInfo} useResource={useResource}
+        usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} useResource={useResource}
         onPick={vi.fn()} onClose={vi.fn()} createWorkspace={vi.fn()}
         useDirectoryFlow={occupancySource().useDirectoryFlow} renderSlot={renderSlot} t={t}
       />,

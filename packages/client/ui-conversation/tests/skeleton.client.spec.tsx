@@ -168,6 +168,7 @@ function mount(
   const inputActions = wiring.actions
   const stop = vi.fn()
   const open = vi.fn()
+  const setHeaderVisible = vi.fn()
   const slotCalls: string[] = []
   const lineageOwners: ConversationHeaderLineageOwnerProps[] = []
   const viewTabs = options.viewTabs ?? [
@@ -200,6 +201,7 @@ function mount(
           useTrajectory={useTrajectory}
           useSessions={props.useSessions}
           usePanelInfo={props.usePanelInfo}
+          useSidebarInfo={props.useSidebarInfo}
           useResource={useResource}
           useSessionPendingInteraction={useSessionPendingInteraction}
           useWorkspaces={props.useWorkspaces}
@@ -210,6 +212,7 @@ function mount(
           actions={store.actions}
           renderSlot={renderSlot as never}
           open={open}
+          setHeaderVisible={(visible) => { setHeaderVisible(visible) }}
           selectView={(view) => { store.actions.setView(view) }}
           t={t}
         />
@@ -227,6 +230,7 @@ function mount(
           useTrajectory={useTrajectory}
           useSessions={props.useSessions}
           usePanelInfo={props.usePanelInfo}
+          useSidebarInfo={props.useSidebarInfo}
           useResource={useResource}
           useSessionPendingInteraction={useSessionPendingInteraction}
           useWorkspaces={props.useWorkspaces}
@@ -254,6 +258,7 @@ function mount(
           useConversation={useConversation}
           useSessions={props.useSessions}
           usePanelInfo={props.usePanelInfo}
+          useSidebarInfo={props.useSidebarInfo}
           useSessionPendingInteraction={useSessionPendingInteraction}
           useWorkspaces={props.useWorkspaces}
           useProjection={(() => undefined)}
@@ -299,6 +304,7 @@ function mount(
   )) as ConversationRootProps['renderSlotChain']
   const props: ConversationRootProps = {
     usePanelInfo: selector => selector({ activePanelId: null }),
+    useSidebarInfo: selector => selector({ narrow: false, collapsed: false, headerVisible: false }),
     sessionId: SID,
     SessionProvider: ({ children }) => children,
     useSession,
@@ -319,6 +325,7 @@ function mount(
   const view = render(<ConversationRoot {...props} />)
   return {
     view, store, wiring, sink, retargetWorkspace, session, conversation, slotCalls, lineageOwners, seatOwners, open,
+    setHeaderVisible,
     pickerOwner: () => pickerOwner,
     rerender: () => { view.rerender(<ConversationRoot {...props} />) },
   }

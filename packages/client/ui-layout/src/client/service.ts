@@ -21,6 +21,21 @@ export interface PanelInfo {
   readonly activePanelId: MainPanelId | null
 }
 
+/**
+ * Derived sidebar state for the conversation header's expand control. The
+ * frame hides the collapsed rail on a narrow frame once the header is drawn
+ * (the rail's own toggle is gone, so the header's button is the only way back
+ * in); this is the fact that button reads to decide whether to render.
+ */
+export interface SidebarInfo {
+  /** True when the frame is below the auto-collapse breakpoint. */
+  readonly narrow: boolean
+  /** True when the sidebar is in its collapsed (rail) state. */
+  readonly collapsed: boolean
+  /** True when the current Session's header is drawn (reported by the conversation). */
+  readonly headerVisible: boolean
+}
+
 /** The layout store's bound action set (framework-baked, draft params peeled). */
 export type PanelActions = BoundActions<ReturnType<typeof createLayoutStore>>
 
@@ -39,6 +54,13 @@ export interface ILayout {
   beginNavigation(): AbortSignal
   /** Toggle the sidebar panel (closed ⟷ contract default width). */
   toggleSidebar(): void
+  /**
+   * Report whether the current Session's header is drawn. On a narrow frame
+   * the frame keeps the collapsed sidebar's rail only while the header is
+   * hidden (the blank Hero has no top bar to host the expand control).
+   * @param visible - whether the header is on screen.
+   */
+  setHeaderVisible(visible: boolean): void
   /**
    * Report the right panel's presentation without changing its expanded state.
    * @param track - whether the normal panel width reserves a grid track,
@@ -88,6 +110,11 @@ export class LayoutController implements ILayout {
   /** Toggle the sidebar panel (closed ⟷ contract default width). */
   toggleSidebar(): void {
     this.panels.toggleSidebar()
+  }
+
+  /** Report the current Session header's visibility to the frame. */
+  setHeaderVisible(visible: boolean): void {
+    this.panels.setHeaderVisible(visible)
   }
 
   /** Report the right panel's track and fullscreen presentation. */

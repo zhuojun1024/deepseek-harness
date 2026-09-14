@@ -68,6 +68,21 @@
   min-width: 0;
 }
 
+/* The leading seat sits before the Session breadcrumb title, at the header's
+   left edge. Laid out only while its occupant renders something (the sidebar
+   expand button on a narrow frame); empty, it takes no space and the title
+   keeps the edge. Its gap matches the cluster's 10px so the title never
+   shifts when the button appears. */
+.headerLeading {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+.headerLeading:empty {
+  display: none;
+}
+
 .crumbs {
   display: flex;
   align-items: center;

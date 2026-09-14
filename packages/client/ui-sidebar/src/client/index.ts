@@ -11,6 +11,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { SidebarPanelMetadata, SidebarRootInjected } from './contract/slots.ts'
 import { SidebarRoot } from './SidebarRoot.tsx'
+import { SidebarExpandButton } from './SidebarExpandButton.tsx'
 import { en, zh, type SidebarKey } from './locales.ts'
 
 export type {
@@ -81,5 +82,15 @@ export function apply(ctx: ClientContext): void {
     },
     inject: injectProps,
   }, SidebarRoot))
+  // The header's leading seat is the way back into a hidden sidebar on a
+  // narrow frame: the frame hides the 56px rail once the header is drawn, so
+  // this button (shown only in that state) is the only toggle left. It reads
+  // the frame's derived sidebar state through the global useSidebarInfo hook
+  // and asks the layout service to expand.
+  ctx.slots.inject('conversation.session.header.leading', () => ctx.slots.register({
+    name: 'conversation.session.header.leading',
+    locale: NS,
+    inject: () => ({ toggleSidebar: () => { ctx.layout.toggleSidebar() } }),
+  }, SidebarExpandButton))
   syncPanels()
 }

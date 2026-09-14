@@ -22,6 +22,7 @@ async function bench(options: { declareConversation?: boolean } = {}) {
     openSession: (id: SessionId) => { runtime.sessions.open(id) },
   } as never)
   runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+  runtime.ctx.provide('layout', { setHeaderVisible: vi.fn() } as never)
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)
   runtime.slots.installLocale(locale)

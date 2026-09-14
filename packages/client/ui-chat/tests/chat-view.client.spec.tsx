@@ -367,6 +367,7 @@ function makeHarness(
   const SessionProviderStub: ChatViewSlotProps['SessionProvider'] = ({ children }) => <>{children}</>
   const props: ChatViewSlotProps = {
     usePanelInfo: selector => selector({ activePanelId: null }),
+    useSidebarInfo: selector => selector({ narrow: false, collapsed: false, headerVisible: false }),
     sessionId: SID,
     useSession: bindSnapshotSelector(session.source),
     useChat: bindSnapshotSelector(chatSource.source),

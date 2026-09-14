@@ -13,7 +13,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { HostObservable, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
-import type { PanelInfo } from './service.ts'
+import type { PanelInfo, SidebarInfo } from './service.ts'
+import { SIDEBAR_AUTO_COLLAPSE } from './columns.ts'
 import { AppFrame } from './AppFrame.tsx'
 import { createLayoutStore } from './stores.ts'
 import { LayoutController } from './service.ts'
@@ -25,10 +26,13 @@ import { ThemePresenter } from './theme-presenter.ts'
 // OwnerShare contracts below are the render-side halves registrants compose
 // against; the frame components and the store factory are package-internal.
 export { LayoutController } from './service.ts'
-export type { ILayout, MainPanelId, PanelInfo } from './service.ts'
+export type { ILayout, MainPanelId, PanelInfo, SidebarInfo } from './service.ts'
 
 /** Selector hook over root-scoped panel selection. */
 export type UsePanelInfo = SnapshotSelectorHook<PanelInfo>
+
+/** Selector hook over the derived sidebar state (narrow / collapsed / header visible). */
+export type UseSidebarInfo = SnapshotSelectorHook<SidebarInfo>
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -41,6 +45,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface GlobalStandardProps {
     /** Subscribe to the selected main panel independently of parent renders. */
     usePanelInfo: UsePanelInfo
+    /** Subscribe to the derived sidebar state (narrow / collapsed / header visible). */
+    useSidebarInfo: UseSidebarInfo
   }
 
   interface SlotMap {
@@ -143,7 +149,29 @@ export function apply(ctx: ClientContext): void {
       getSnapshot: () => instance.getSnapshot().panelInfo,
       subscribe: listener => instance.subscribe(listener),
     }
-    const disposePanelInfo = ctx.slots.provideRoot({ hooks: { panelInfo } })
+    // Derived sidebar state for the header's expand control. Memoized over the
+    // store snapshot so getSnapshot returns the same reference until the frame
+    // or the header's visibility moves (the renderer's uSES bridge compares it).
+    let sidebarInfoCache: { source: unknown; value: SidebarInfo } | undefined
+    const readSidebarInfo = (): SidebarInfo => {
+      const source = instance.getSnapshot()
+      if (sidebarInfoCache !== undefined && sidebarInfoCache.source === source) {
+        return sidebarInfoCache.value
+      }
+      const { viewportWidth, narrowExpanded, sidebar, headerVisible } = source.layoutInfo
+      const value: SidebarInfo = {
+        narrow: viewportWidth < SIDEBAR_AUTO_COLLAPSE,
+        collapsed: viewportWidth < SIDEBAR_AUTO_COLLAPSE ? !narrowExpanded : sidebar === 0,
+        headerVisible,
+      }
+      sidebarInfoCache = { source, value }
+      return value
+    }
+    const sidebarInfo: HostObservable<SidebarInfo> = {
+      getSnapshot: readSidebarInfo,
+      subscribe: listener => instance.subscribe(listener),
+    }
+    const disposePanelInfo = ctx.slots.provideRoot({ hooks: { panelInfo, sidebarInfo } })
     const disposeService = ctx.reflect.provide('layout', layout)
     const disposeRegistration = ctx.slots.register({
       name: 'root',
