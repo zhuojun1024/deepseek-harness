@@ -9,6 +9,7 @@ import type {
 } from '../contract/slots.ts'
 import { conversationPhase } from '../contract/snapshot.ts'
 import { resolveActiveView } from '../view-selection.ts'
+import { DefaultConversationViews } from './DefaultConversationViews.tsx'
 import css from './ConversationRoot.module.css'
 
 /** Full props composed from the strict session body contract. */
@@ -54,7 +55,7 @@ function equalBreadcrumbs(left: readonly Breadcrumb[], right: readonly Breadcrum
 /**
  * Renders Session header chrome above the resident conversation scrollport.
  * @param props - Strict Session store, view ledger, navigation, render, and locale shares.
- * @returns the hidden blank-session header or visible title and tabs.
+ * @returns Session navigation controls, with title and tabs after conversation starts.
  */
 export function ConversationSessionHeader({
   sessionId, useSession, useSessions, useConversation, useConversationViews, useStore,
@@ -80,17 +81,14 @@ export function ConversationSessionHeader({
   }, [hideChrome, setHeaderVisible])
 
   return (
-    <header
-      className={clsx(css.header, hideChrome && css.headerHidden)}
-      aria-hidden={hideChrome || undefined}
-    >
-      {!hideChrome && (
-        <>
-          <div className={css.titleRow}>
+    <header className={clsx(css.header, hideChrome && css.headerBlank)}>
+      <div className={css.titleRow}>
+        <div className={css.headerLeading} data-conversation-header-leading="">
+          {renderSlot('conversation.session.header.leading', {})}
+        </div>
+        {!hideChrome && (
+          <>
             <div className={css.titleCluster}>
-              <div className={css.headerLeading}>
-                {renderSlot('conversation.session.header.leading', {})}
-              </div>
               <nav className={css.crumbs} aria-label={t('session.hierarchy')}>
                 {ancestry.map((summary, index) => {
                   const last = index === ancestry.length - 1
@@ -147,27 +145,27 @@ export function ConversationSessionHeader({
             <div className={css.headerUtilities}>
               {renderSlot('conversation.session.header.utilities', {})}
             </div>
-            <div className={css.headerCorner} data-conversation-header-corner="">
-              {renderSlot('conversation.session.header.corner', {})}
-            </div>
-          </div>
-          {tabs.length > 1 && (
-            <div className={css.tabs} role="tablist">
-              {tabs.map(viewTab => (
-                <button
-                  key={viewTab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={viewTab.id === active?.id}
-                  className={clsx(css.tab, viewTab.id === active?.id && css.tabActive)}
-                  onClick={() => { selectView(viewTab.id) }}
-                >
-                  {viewTab.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+          </>
+        )}
+        <div className={css.headerCorner} data-conversation-header-corner="">
+          {renderSlot('conversation.session.header.corner', {})}
+        </div>
+      </div>
+      {!hideChrome && tabs.length > 1 && (
+        <div className={css.tabs} role="tablist">
+          {tabs.map(viewTab => (
+            <button
+              key={viewTab.id}
+              type="button"
+              role="tab"
+              aria-selected={viewTab.id === active?.id}
+              className={clsx(css.tab, viewTab.id === active?.id && css.tabActive)}
+              onClick={() => { selectView(viewTab.id) }}
+            >
+              {viewTab.label}
+            </button>
+          ))}
+        </div>
       )}
     </header>
   )
@@ -179,35 +177,6 @@ export function ConversationSessionHeader({
  * @param props - Strict Session input/store, view ledger, and render shares.
  * @returns the active view area, or null while the Session remains blank.
  */
-export function ConversationSession({
-  useSession, useConversation, useConversationViews, useInput, inputActions, useStore, actions,
-  renderSlot, bindDraftMirror, openView,
-}: ConversationSessionProps) {
-  const tabs = useConversationViews(value => value)
-  const selectedId = useStore(s => s.view)
-  const active = resolveActiveView(tabs, selectedId)
-  const session = useSession(s => s)
-  const conversation = useConversation(s => s)
-  const inputState = useInput(s => s)
-  const storedDraft = useStore(s => s.draft)
-  const viewRequest = useStore(s => s.viewRequest ?? null)
-
-  useEffect(() => {
-    if (inputState.draft === '' && storedDraft !== '') inputActions.setDraft(storedDraft)
-    const unmirror = bindDraftMirror(actions.setDraft)
-    return () => { unmirror() }
-    // Mount-only (deps pinned to inputActions): later store writes come from
-    // the machine mirror, not this seed effect.
-  }, [inputActions])
-
-  if (session.blank && conversationPhase(session, conversation) === 'blank') return null
-  return (
-    <div className={css.viewArea}>
-      {active !== undefined && renderSlot('conversation.view', {
-        viewRequest,
-        openView,
-        completeViewRequest: actions.completeViewRequest,
-      }, { only: active.id })}
-    </div>
-  )
+export function ConversationSession(props: ConversationSessionProps) {
+  return <DefaultConversationViews {...props} />
 }

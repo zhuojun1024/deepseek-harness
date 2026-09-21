@@ -1,0 +1,85 @@
+/*
+ * The conversation header's leading seat. On macOS desktop the sidebar hides
+ * entirely when collapsed, so the open and New Session controls live here,
+ * beside the traffic lights; shown only while the sidebar column is fully
+ * hidden (expanded, the sidebar holds its own toggle/New Session and the
+ * traffic lights sit over the column). On a narrow frame the frame hides the
+ * 56px rail once the header is drawn, so the seat's expand button is the only
+ * toggle left: the same icon button as the sidebar's own rail toggle, a 28px
+ * circle around a 15px glyph, un-mirrored (the panel opens to the left, the
+ * sidebar's natural edge).
+ */
+.controls {
+  display: none;
+}
+
+/* Left padding clears the hiddenInset traffic lights: they span x 16..~68 in
+   window coordinates and the header already pads 20, so 68 lands the first
+   control at x 88 — a full control-width of air after the lights. Trailing
+   margin restores the leading seat's 8px gap to the breadcrumbs (the seat
+   itself carries none, so the empty expanded state adds no width). */
+:global([data-sidebar-collapsed]) .controls {
+  display: flex;
+  align-items: center;
+  /* Same 8px rhythm as the header's trailing controls (ConversationRoot
+     .headerUtilities/.headerCorner), so both ends of the title row read as one
+     control set. */
+  gap: 8px;
+  padding-left: 68px;
+  margin-right: 8px;
+}
+
+.iconButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* Glyphs match the right-side header controls (ui-sidebar-right ExpandButton):
+   a 15px icon in the 28px circle. */
+.iconButton svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* The narrow-frame expand button: the same 28px circle. The trailing margin
+   matches the title cluster's 10px gap so the title never shifts when the
+   button appears. */
+.button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  margin-right: 10px;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 28px;
+  cursor: pointer;
+}
+
+.button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}

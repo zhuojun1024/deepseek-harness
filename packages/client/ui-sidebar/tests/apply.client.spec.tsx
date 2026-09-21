@@ -7,8 +7,8 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { SidebarRootInjected } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
+import { HeaderLeading } from '../src/client/HeaderLeading.tsx'
 import { apply as hostApply } from '../src/index.ts'
-import { SidebarExpandButton } from '../src/client/SidebarExpandButton.tsx'
 
 const owners = new Set<Fiber>()
 afterEach(async () => {
@@ -42,6 +42,7 @@ async function bench(declare = true) {
       { name: 'root', children: {
         'sidebar': { kind: 'single', scope: 'root' },
         'main': { kind: 'keyed', scope: 'root' },
+        'conversation.session.header.leading': { kind: 'single', scope: 'session' },
       } },
       SidebarFrame,
     )
@@ -70,6 +71,12 @@ describe('ui-sidebar apply', () => {
     expect(b.slots.spec('sidebar.panellist')).toEqual({ kind: 'list', scope: 'root' })
     // Copy rides the standard locale seat, not the inject face.
     expect(b.slots.entries('sidebar')[0]!.locale).toBe('sidebar')
+    // The header leading occupant reuses the shell's inject face and locale.
+    const leading = b.slots.entries('conversation.session.header.leading')
+    expect(leading).toHaveLength(1)
+    expect(leading[0]!.component).toBe(HeaderLeading)
+    expect(leading[0]!.locale).toBe('sidebar')
+    expect(leading[0]!.inject).toBe(b.slots.entries('sidebar')[0]!.inject)
     const injected = (b.slots.entries('sidebar')[0]!.inject as () => SidebarRootInjected)()
     expect(Object.keys(injected)).toEqual(['startSession', 'toggleSidebar', 'selectPanel', 'hooks'])
     expect(injected.hooks.panels.getSnapshot()).toEqual([])
@@ -132,34 +139,13 @@ describe('ui-sidebar apply', () => {
     }
   })
 
-  it('registers the header leading seat as the way back into a hidden sidebar', async () => {
-    const b = await bench()
-    // The conversation declares the leading seat; the sidebar contributes the
-    // expand button into it. Declare it session-scoped, as the header does.
-    b.slots.register({
-      name: 'main', key: 'conversation',
-      children: { 'conversation.session.header.leading': { kind: 'single', scope: 'session' } },
-    }, (_props: PropsRenderSlots<'conversation.session.header.leading'>) => null)
-    const fiber = b.ctx.plugin({ inject: [...inject], apply })
-    await fiber.await()
-    const entry = b.slots.entries('conversation.session.header.leading')[0]!
-    expect(entry.component).toBe(SidebarExpandButton)
-    expect(entry.locale).toBe('sidebar')
-    // The injected share is the layout toggle, not a store or a hook.
-    const injected = (entry.inject as () => { toggleSidebar: () => void })()
-    expect(Object.keys(injected)).toEqual(['toggleSidebar'])
-    injected.toggleSidebar()
-    expect(b.layout.toggleSidebar).toHaveBeenCalledOnce()
-    await fiber.dispose()
-    expect(b.slots.entries('conversation.session.header.leading')).toHaveLength(0)
-  })
-
   it('removes the entry and child declaration on teardown', async () => {
     const b = await bench()
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     await fiber.dispose()
     expect(b.slots.entries('sidebar')).toHaveLength(0)
+    expect(b.slots.entries('conversation.session.header.leading')).toHaveLength(0)
     expect(b.slots.spec('sidebar.brand.mark')).toBeUndefined()
     expect(b.slots.spec('sidebar.brand.name')).toBeUndefined()
     expect(b.slots.spec('sidebar.workspaces')).toBeUndefined()

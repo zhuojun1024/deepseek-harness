@@ -9,9 +9,11 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: pulls the Session root standard-props merge.
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+// Type-only: pulls the conversation header slot declarations.
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SidebarPanelMetadata, SidebarRootInjected } from './contract/slots.ts'
+import { HeaderLeading } from './HeaderLeading.tsx'
 import { SidebarRoot } from './SidebarRoot.tsx'
-import { SidebarExpandButton } from './SidebarExpandButton.tsx'
 import { en, zh, type SidebarKey } from './locales.ts'
 
 export type {
@@ -75,6 +77,7 @@ export function apply(ctx: ClientContext): void {
     children: {
       'sidebar.brand.mark': { kind: 'single', scope: 'root' },
       'sidebar.brand.name': { kind: 'single', scope: 'root' },
+      'sidebar.toggle.badge': { kind: 'single', scope: 'root' },
       'sidebar.panellist': { kind: 'list', scope: 'root' },
       'sidebar.workspaces': { kind: 'single', scope: 'root' },
       'sidebar.settings': { kind: 'single', scope: 'root' },
@@ -82,15 +85,17 @@ export function apply(ctx: ClientContext): void {
     },
     inject: injectProps,
   }, SidebarRoot))
-  // The header's leading seat is the way back into a hidden sidebar on a
-  // narrow frame: the frame hides the 56px rail once the header is drawn, so
-  // this button (shown only in that state) is the only toggle left. It reads
-  // the frame's derived sidebar state through the global useSidebarInfo hook
-  // and asks the layout service to expand.
+  // The header's leading seat is the way back into a hidden sidebar: macOS
+  // desktop hides the collapsed sidebar entirely, so the open/New Session
+  // controls move into the header (the occupant reuses the shell's injected
+  // actions and shows itself purely through CSS against the AppFrame's
+  // data-sidebar-collapsed attribute); on a narrow frame the frame hides the
+  // 56px rail once the header is drawn, so the seat's expand button is the
+  // only toggle left.
   ctx.slots.inject('conversation.session.header.leading', () => ctx.slots.register({
     name: 'conversation.session.header.leading',
     locale: NS,
-    inject: () => ({ toggleSidebar: () => { ctx.layout.toggleSidebar() } }),
-  }, SidebarExpandButton))
+    inject: injectProps,
+  }, HeaderLeading))
   syncPanels()
 }
