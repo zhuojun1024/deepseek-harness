@@ -9,10 +9,9 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: pulls the Session root standard-props merge.
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-// Type-only: pulls the conversation header slot declarations.
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SidebarPanelMetadata, SidebarRootInjected } from './contract/slots.ts'
 import { HeaderLeading } from './HeaderLeading.tsx'
+import { HeaderLeadingControls } from './HeaderLeadingControls.tsx'
 import { SidebarRoot } from './SidebarRoot.tsx'
 import { en, zh, type SidebarKey } from './locales.ts'
 
@@ -85,15 +84,20 @@ export function apply(ctx: ClientContext): void {
     },
     inject: injectProps,
   }, SidebarRoot))
-  // The header's leading seat is the way back into a hidden sidebar: macOS
-  // desktop hides the collapsed sidebar entirely, so the open/New Session
-  // controls move into the header (the occupant reuses the shell's injected
-  // actions and shows itself purely through CSS against the AppFrame's
-  // data-sidebar-collapsed attribute); on a narrow frame the frame hides the
-  // 56px rail once the header is drawn, so the seat's expand button is the
-  // only toggle left.
-  ctx.slots.inject('conversation.session.header.leading', () => ctx.slots.register({
-    name: 'conversation.session.header.leading',
+  // macOS desktop hides the collapsed sidebar entirely, so the open/New
+  // Session controls move into the frame's window-chrome seat beside the
+  // traffic lights; the occupant reuses the shell's injected actions, and
+  // the AppFrame mounts the seat only while the column is fully hidden.
+  ctx.slots.inject('shell.leading', () => ctx.slots.register({
+    name: 'shell.leading',
+    locale: NS,
+    inject: injectProps,
+  }, HeaderLeadingControls))
+  // On a narrow frame the frame hides the 56px rail once a session header is
+  // drawn, so the conversation header's leading seat hosts the only toggle
+  // left; the occupant renders nothing while the rail is visible.
+  ctx.slots.inject('conversation.header.leading', () => ctx.slots.register({
+    name: 'conversation.header.leading',
     locale: NS,
     inject: injectProps,
   }, HeaderLeading))

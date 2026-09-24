@@ -9,6 +9,7 @@ import type {
   SidebarSettingsOwnerProps,
 } from '../src/client/contract/slots.ts'
 import { HeaderLeading, type HeaderLeadingProps } from '../src/client/HeaderLeading.tsx'
+import { HeaderLeadingControls, type HeaderLeadingControlsProps } from '../src/client/HeaderLeadingControls.tsx'
 import { SidebarRoot } from '../src/client/SidebarRoot.tsx'
 import { en } from '../src/client/locales.ts'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
@@ -231,25 +232,72 @@ it('keeps the macOS sidebar toggle in its top strip', () => {
   const shell = mountShell()
   fireEvent.click(screen.getByRole('button', { name: en['toggle.collapse'] }))
   expect(shell.toggleSidebar).toHaveBeenCalledOnce()
+  // The brand stays part of the logo row's window-drag surface: no button
+  // role (the global no-drag rule would subtract it); only the dedicated
+  // New Session capsule starts a session.
+  expect(screen.getAllByRole('button', { name: 'New session' })).toHaveLength(1)
+  expect(screen.getByTestId('custom-brand-mark')).toBeTruthy()
 })
 
-it.each([undefined, 'win32', 'linux', 'darwin'])('shows header sidebar controls only on macOS desktop (%s)', (platform) => {
-  if (platform !== undefined) document.documentElement.dataset.platform = platform
+it('wires the shell.leading controls to the shared sidebar actions', () => {
   const toggleSidebar = vi.fn()
   const startSession = vi.fn()
-  // The macOS branch consumes its two actions and locale; the frame's sidebar
-  // info hook is read unconditionally but unused there.
-  const props = {
-    useSidebarInfo: () => ({ narrow: false, collapsed: false, headerVisible: false }),
-    toggleSidebar, startSession, t,
-  } as HeaderLeadingProps
-  const view = render(<HeaderLeading {...props} />)
-  if (platform !== 'darwin') {
-    expect(view.container.innerHTML).toBe('')
-    return
-  }
+  // This occupant only consumes its two actions and locale, not Session hooks;
+  // mounting is the frame's decision (ui-layout shell.leading seat).
+  const props = { toggleSidebar, startSession, t } as HeaderLeadingControlsProps
+  render(<HeaderLeadingControls {...props} />)
   fireEvent.click(screen.getByRole('button', { name: en['toggle.open'] }))
   fireEvent.click(screen.getByRole('button', { name: en['session.new.label'] }))
   expect(toggleSidebar).toHaveBeenCalledOnce()
   expect(startSession).toHaveBeenCalledOnce()
+})
+
+it('shows the narrow-frame expand button only while the rail is hidden', () => {
+  const toggleSidebar = vi.fn()
+  const mount = (info: { narrow: boolean; collapsed: boolean; headerVisible: boolean }) => render(
+    <HeaderLeading {...({
+      useSidebarInfo: (selector: (value: typeof info) => unknown) => selector(info),
+      toggleSidebar, t,
+    } as HeaderLeadingProps)} />,
+  )
+  const shown = mount({ narrow: true, collapsed: true, headerVisible: true })
+  fireEvent.click(shown.getByRole('button', { name: en['toggle.open'] }))
+  expect(toggleSidebar).toHaveBeenCalledOnce()
+  expect(mount({ narrow: true, collapsed: false, headerVisible: true }).container.querySelector('[data-sidebar-expand]')).toBeNull()
+  expect(mount({ narrow: false, collapsed: true, headerVisible: true }).container.querySelector('[data-sidebar-expand]')).toBeNull()
+})
+
+describe('Windows caption tooltips', () => {
+  afterEach(() => { document.documentElement.removeAttribute('data-windows-titlebar') })
+
+  const hover = (button: HTMLElement): void => {
+    fireEvent.mouseEnter(button)
+    act(() => { vi.advanceTimersByTime(500) })
+  }
+
+  it.each([false, true])(
+    'drops the sidebar toggle bubble below the caption (collapsed=%s)',
+    (collapsed) => {
+      vi.useFakeTimers()
+      document.documentElement.setAttribute('data-windows-titlebar', '')
+      mountShell({ collapsed, width: collapsed ? 0 : 300 })
+      hover(screen.getByRole('button', { name: collapsed ? 'Open sidebar' : 'Collapse sidebar' }))
+      expect(screen.getByRole('tooltip').getAttribute('data-side')).toBe('bottom')
+    },
+  )
+
+  it('drops the collapsed New Session bubble below the caption as well', () => {
+    vi.useFakeTimers()
+    document.documentElement.setAttribute('data-windows-titlebar', '')
+    mountShell({ collapsed: true, width: 0 })
+    hover(screen.getByRole('button', { name: 'New session' }))
+    expect(screen.getByRole('tooltip').getAttribute('data-side')).toBe('bottom')
+  })
+
+  it('keeps the ordinary Web bubble beside its anchor', () => {
+    vi.useFakeTimers()
+    mountShell({ collapsed: true, width: 0 })
+    hover(screen.getByRole('button', { name: 'Open sidebar' }))
+    expect(screen.getByRole('tooltip').getAttribute('data-side')).toBe('right')
+  })
 })

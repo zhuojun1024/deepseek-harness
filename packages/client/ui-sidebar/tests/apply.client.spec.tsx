@@ -8,6 +8,7 @@ import { apply, inject } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { SidebarRootInjected } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { HeaderLeading } from '../src/client/HeaderLeading.tsx'
+import { HeaderLeadingControls } from '../src/client/HeaderLeadingControls.tsx'
 import { apply as hostApply } from '../src/index.ts'
 
 const owners = new Set<Fiber>()
@@ -42,7 +43,8 @@ async function bench(declare = true) {
       { name: 'root', children: {
         'sidebar': { kind: 'single', scope: 'root' },
         'main': { kind: 'keyed', scope: 'root' },
-        'conversation.session.header.leading': { kind: 'single', scope: 'session' },
+        'shell.leading': { kind: 'single', scope: 'root' },
+        'conversation.header.leading': { kind: 'single', scope: 'root' },
       } },
       SidebarFrame,
     )
@@ -71,12 +73,18 @@ describe('ui-sidebar apply', () => {
     expect(b.slots.spec('sidebar.panellist')).toEqual({ kind: 'list', scope: 'root' })
     // Copy rides the standard locale seat, not the inject face.
     expect(b.slots.entries('sidebar')[0]!.locale).toBe('sidebar')
-    // The header leading occupant reuses the shell's inject face and locale.
-    const leading = b.slots.entries('conversation.session.header.leading')
+    // The window-chrome occupant reuses the shell's inject face and locale.
+    const leading = b.slots.entries('shell.leading')
     expect(leading).toHaveLength(1)
-    expect(leading[0]!.component).toBe(HeaderLeading)
+    expect(leading[0]!.component).toBe(HeaderLeadingControls)
     expect(leading[0]!.locale).toBe('sidebar')
     expect(leading[0]!.inject).toBe(b.slots.entries('sidebar')[0]!.inject)
+    // The narrow-frame expand button occupies the conversation header's leading seat.
+    const headerLeading = b.slots.entries('conversation.header.leading')
+    expect(headerLeading).toHaveLength(1)
+    expect(headerLeading[0]!.component).toBe(HeaderLeading)
+    expect(headerLeading[0]!.locale).toBe('sidebar')
+    expect(headerLeading[0]!.inject).toBe(b.slots.entries('sidebar')[0]!.inject)
     const injected = (b.slots.entries('sidebar')[0]!.inject as () => SidebarRootInjected)()
     expect(Object.keys(injected)).toEqual(['startSession', 'toggleSidebar', 'selectPanel', 'hooks'])
     expect(injected.hooks.panels.getSnapshot()).toEqual([])
@@ -145,7 +153,7 @@ describe('ui-sidebar apply', () => {
     await fiber.await()
     await fiber.dispose()
     expect(b.slots.entries('sidebar')).toHaveLength(0)
-    expect(b.slots.entries('conversation.session.header.leading')).toHaveLength(0)
+    expect(b.slots.entries('shell.leading')).toHaveLength(0)
     expect(b.slots.spec('sidebar.brand.mark')).toBeUndefined()
     expect(b.slots.spec('sidebar.brand.name')).toBeUndefined()
     expect(b.slots.spec('sidebar.workspaces')).toBeUndefined()
