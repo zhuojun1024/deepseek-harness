@@ -22,20 +22,20 @@ const renderMessageImages: AssistantMarkdownProps['renderMessageImages'] = () =>
 describe('ReasoningRow', () => {
   it.each([
     ['', ''],
-    ['An unfinished line', ''],
-    ['A completed first line\nUnfinished continuation', 'A completed first line'],
-    ['First\nSecond\nThird\n', 'First'],
-    ['First\n\nNext unfinished', 'First'],
-    ['First\n\nNext complete\nDetails', 'Next complete'],
+    ['An unfinished line', 'An unfinished line'],
+    ['A completed first line\nUnfinished continuation', 'Unfinished continuation'],
+    ['First\nSecond\nThird\n', 'Third'],
+    ['First\n\nNext unfinished', 'Next unfinished'],
+    ['First\n\nNext complete\nDetails', 'Details'],
     ['First\n\n\nNext complete\n', 'Next complete'],
-    ['First\n \n\t\nNext complete\nDetails', 'Next complete'],
+    ['First\n \n\t\nNext complete\nDetails', 'Details'],
     ['First\r\n\r\n\r\nNext complete\r\n', 'Next complete'],
-    ['First\r\n \r\n\t\r\nNext complete\r\nDetails', 'Next complete'],
-    ['First\n\n\nNext unfinished', 'First'],
+    ['First\r\n \r\n\t\r\nNext complete\r\nDetails', 'Details'],
+    ['First\n\n\nNext unfinished', 'Next unfinished'],
     ['\n\n\nFirst complete\n', 'First complete'],
     ['First\r\n \t\r\nNext complete\r\n', 'Next complete'],
     ['First\n\n\n', 'First'],
-  ])('previews the completed paragraph first line for %j', (text, summary) => {
+  ])('follows the latest streaming line for %j', (text, summary) => {
     const view = render(<ReasoningRow useDisclosure={useDisclosure} text={text} running usePresentation={useDetailedPresentation} t={t} />)
     const root = view.container.querySelector('[data-variant="think"]')!
     expect(root.querySelector('[class*="summaryText"]')?.textContent).toBe(summary)
@@ -114,7 +114,7 @@ describe('ReasoningRow', () => {
     expect(view.getByRole('button').getAttribute('aria-expanded')).toBe('false')
   })
 
-  it('advances on completed paragraph first lines, then restores the settled first line', () => {
+  it('follows the latest streaming line, then restores the settled first line', () => {
     const view = render(
       <AssistantMarkdown useDisclosure={useDisclosure}
         usePresentation={useDetailedPresentation}
@@ -138,9 +138,9 @@ describe('ReasoningRow', () => {
         renderMessageImages={renderMessageImages}
       />,
     )
-    expect(view.getByText('Newest reasoning tokens').parentElement
+    expect(view.getByText('Checking boundaries').parentElement
       ?.getAttribute('data-streaming')).toBe('true')
-    expect(view.queryByText('Checking boundaries')).toBeNull()
+    expect(view.queryByText('Newest reasoning tokens')).toBeNull()
 
     const text = 'Inspect the session\nDetails\n\nNewest reasoning tokens\nMore details\n\nChecking boundaries\n'
     view.rerender(

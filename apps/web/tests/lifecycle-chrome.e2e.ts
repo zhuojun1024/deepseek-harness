@@ -342,9 +342,11 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
           await expandOwningTurnProcess(page, thinking)
           await expect.poll(() => thinking.getByRole('button').getAttribute('aria-expanded')).toBe('false')
           await reasoningComplete.promise
-          expect(await thinking.getAttribute('data-preview')).toBeNull()
+          // The fixture's reasoning is one unfinished line, so the streaming
+          // ticker appears as soon as the first delta lands.
+          await expect.poll(async () => thinking.getAttribute('data-preview')).toBe('true')
           expect(await thinking.getByRole('button').getAttribute('aria-expanded')).toBe('false')
-          expect(await thinking.locator('[data-streaming]').isVisible()).toBe(false)
+          expect(await thinking.locator('[data-streaming]').isVisible()).toBe(true)
         }
         observedReasoning.resolve(undefined)
         return await settled

@@ -83,12 +83,19 @@
   text-overflow: ellipsis;
 }
 
+/* The streaming ticker pins the growing latest line to the row's right edge, so
+   new tokens read in right-to-left and overflow the left edge. */
 .summary[data-streaming] {
-  mask-image: linear-gradient(to right, black calc(100% - 48px), transparent);
+  display: flex;
+  justify-content: flex-end;
 }
 
 .summary[data-streaming] .summaryText {
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: 100%;
   overflow: visible;
+  text-align: start;
   text-overflow: clip;
 }
 

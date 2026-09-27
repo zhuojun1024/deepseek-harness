@@ -40,7 +40,7 @@ class PausedReasoningAdapter extends LlmAdapter {
   }
 }
 
-it('shows completed paragraph first lines across blank lines with a right-edge fade', async () => {
+it('follows the latest streaming reasoning line across blank lines', async () => {
   const scaffold = await launchWebScaffold()
   const adapter = new PausedReasoningAdapter()
   try {
@@ -64,25 +64,30 @@ it('shows completed paragraph first lines across blank lines with a right-edge f
       const reasoning = page.locator('[data-variant="think"][data-state="running"]')
       await expandOwningTurnProcess(page, reasoning)
       await reasoning.waitFor()
-      expect(await reasoning.getAttribute('data-preview')).toBeNull()
-
-      first.proceed.resolve(undefined)
-      await second.arrived.promise
       const preview = reasoning.locator('[data-streaming]')
+      expect(await reasoning.getAttribute('data-preview')).toBe('true')
       await expect.poll(() => preview.textContent()).toBe('First paragraph')
       expect(await preview.isVisible()).toBe(true)
       await preview.evaluate((element) => { element.setAttribute('data-retained-preview', 'true') })
 
-      second.proceed.resolve(undefined)
-      await third.arrived.promise
+      first.proceed.resolve(undefined)
+      await second.arrived.promise
       await expect.poll(() => preview.textContent()).toBe(SUMMARY)
       expect(await preview.getAttribute('data-retained-preview')).toBe('true')
-      expect(await preview.evaluate(element => getComputedStyle(element).maskImage)).toContain('linear-gradient')
-      expect(await preview.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true)
+      expect(await preview.evaluate(element => getComputedStyle(element).maskImage)).not.toContain('linear-gradient')
+      // The ticker pins the growing latest line to the right edge, so its
+      // surplus overflows the left edge and the summary never scrolls sideways.
+      expect(await preview.evaluate((element) => {
+        const box = element.getBoundingClientRect()
+        const line = element.firstElementChild?.getBoundingClientRect()
+        return line !== undefined && box.right - line.right <= 1 && line.left < box.left
+      })).toBe(true)
       expect(await reasoning.getByRole('button').getAttribute('aria-expanded')).toBe('false')
       await compareOrRefreshGolden(UI_EXPECTED,
         await captureStableAria(page, '[data-variant="think"]', scaffold.workspaceCwd), webSnapshotMode())
 
+      second.proceed.resolve(undefined)
+      await third.arrived.promise
       third.proceed.resolve(undefined)
       await settled
       await page.getByText('Done', { exact: true }).waitFor()
