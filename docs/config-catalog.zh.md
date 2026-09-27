@@ -1606,6 +1606,13 @@ export interface PiAiProviderProfile {
   defaultInput?: PiAiModality[]
   /** Provider request headers, validated against Fetch when the profile resolves; Harness attribution wins reserved names. */
   headers?: Record<string, string>
+  /**
+   * When set, the adapter sends this header name with the current session id as
+   * its value on every request. Providers that route or optimise by
+   * per-conversation affinity (e.g. OpenCode Go's `x-opencode-session`) use
+   * this instead of a static `headers` entry to get a unique id per session.
+   */
+  sessionHeader?: string
   /** Provider-neutral pi-ai reasoning level. */
   reasoning?: ModelThinkingLevel
   /** Token budgets used by reasoning providers that support them. */

@@ -78,6 +78,7 @@ kind: "package-reference"
 | `displayName` | 提供方名 | 选择器界面显示的标签 |
 | `api` | 目录协议 | 协议格式；仅目录不提供的路由需要 |
 | `baseURL` | 目录端点 | 路由上所有模型的端点 |
+| `sessionHeader` | 无 | 每个请求以当前会话 id 为值发送的标头名；用于按会话路由提供方（如 OpenCode Go 的 `x-opencode-session`） |
 | `models` | 已安装目录 | 整体替换路由目录；每个条目从已安装模型取默认值 |
 | `modelOverrides` | 无 | 重塑个别已安装目录模型，而不替换其余模型 |
 | `compat` | 目录检测 | 无法识别端点的协议兼容开关 |
