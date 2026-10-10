@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-14-sidebar-auto-collapse-on-session-navigation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-14-sidebar-auto-collapse-on-session-navigation.md
+/agent-note-sidebar-auto-collapse-on-session-navigation-narrow-frames-only:
+  en: 36a1a5b9e197978a
+  zh: 1fe7e6142efa8100
+/agent-note-sidebar-auto-collapse-on-session-navigation-narrow-frames-only/problem:
+  en: 0e1653cfdd00d1b6
+  zh: 767f604b9dc060c6
+/agent-note-sidebar-auto-collapse-on-session-navigation-narrow-frames-only/decision:
+  en: 242c52b786c08d34
+  zh: 48237316956caa25
+/agent-note-sidebar-auto-collapse-on-session-navigation-narrow-frames-only/alternatives-considered:
+  en: ee6b26364a4b18d3
+  zh: a29791907f9fb8fc
+/agent-note-sidebar-auto-collapse-on-session-navigation-narrow-frames-only/consequences:
+  en: c8641be4f2449f71
+  zh: 64bf19ea17f20a28

@@ -12,7 +12,7 @@ Status: implemented
 
 **顶栏绘制时，frame 隐藏折叠的 rail。** 会话顶栏经新的 `setHeaderVisible` action 把自己的可见性报告进布局 store，[AppFrame.tsx](../../../../packages/client/ui-layout/src/client/AppFrame.tsx) 在 `narrow && sidebarCollapsed && headerVisible`（`narrowHidden` 条件）成立时把侧边栏 track 定为 0 并省略该列。顶栏在挂载和每次变化时报告 `!hideChrome`，卸载时报告 `false`，于是没有会话的全局面板仍保留 rail。这是右栏 report→store→frame 模式在左列的应用：占用者报告事实，store 记录，frame 据此定尺寸。
 
-**顶栏 leading 座位是回到隐藏侧边栏的入口。** [ConversationSession.tsx](../../../../packages/client/ui-conversation/src/client/skeleton/ConversationSession.tsx) 在面包屑前声明 `conversation.session.header.leading`（single，session 作用域），[SidebarExpandButton.tsx](../../../../packages/client/ui-sidebar/src/client/SidebarExpandButton.tsx) 注册进它。按钮只在同样三个事实隐藏 rail 时渲染——`narrow && collapsed && headerVisible`——点击调用 `ctx.layout.toggleSidebar()`。它是一枚 28px 图标按钮，携带 `toggle.open` 词条与 tooltip；座位为空时塌缩为无。
+**顶栏 leading 座位是回到隐藏侧边栏的入口。** [ConversationHeader.tsx](../../../../packages/client/ui-conversation/src/client/skeleton/ConversationHeader.tsx) 在会话标题行之前渲染 `conversation.header.leading`（single，root 作用域），[HeaderLeading.tsx](../../../../packages/client/ui-sidebar/src/client/HeaderLeading.tsx) 注册进它。按钮只在同样三个事实隐藏 rail 时渲染——`narrow && collapsed && headerVisible`——点击调用 `ctx.layout.toggleSidebar()`。它是一枚 28px 图标按钮，携带 `toggle.open` 词条与 tooltip；座位为空时塌缩为无。
 
 **`sidebarInfo` 是标准 props 分享上的根作用域派生事实。** [index.ts](../../../../packages/client/ui-layout/src/client/index.ts) 从布局 store 派生 `{ narrow, collapsed, headerVisible }`，经 `provideRoot` 的 `sidebarInfo` hook 发布，`GlobalStandardProps` 合并把它作为 `useSidebarInfo` 暴露给每个坑位组件。它对 store 快照做记忆化，`getSnapshot` 在 frame 或顶栏可见性变化前返回同一引用，满足渲染器 uSES 桥要求的快照稳定契约。
 

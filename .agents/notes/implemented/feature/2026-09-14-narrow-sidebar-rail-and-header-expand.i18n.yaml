@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-14-narrow-sidebar-rail-and-header-expand.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-14-narrow-sidebar-rail-and-header-expand.md
-2026-09-14-narrow-sidebar-rail-and-header-expand.md: b27f84dfd2aae3d4a291dd04237b1e23731e0951
-2026-09-14-narrow-sidebar-rail-and-header-expand.zh.md: aa506877729b0a56383a1906201cb00965958782
+/agent-note-narrow-sidebar-rail-and-header-expand-button:
+  en: 9c59771e310ba29e
+  zh: 579b7c1aac7ead88
+/agent-note-narrow-sidebar-rail-and-header-expand-button/problem:
+  en: ad4b80cef372340e
+  zh: 9816451a6e7ee69f
+/agent-note-narrow-sidebar-rail-and-header-expand-button/decision:
+  en: f06bd4e40ce34bfc
+  zh: 18ac417c6ed47667
+/agent-note-narrow-sidebar-rail-and-header-expand-button/alternatives-considered:
+  en: 3b28a09f1b75953e
+  zh: 14d278194d9c2dc0
+/agent-note-narrow-sidebar-rail-and-header-expand-button/consequences:
+  en: 343a4ef8725b03d8
+  zh: 27eb750546ec2e9b
