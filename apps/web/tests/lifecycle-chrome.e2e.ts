@@ -346,7 +346,7 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
           // ticker appears as soon as the first delta lands.
           await expect.poll(async () => thinking.getAttribute('data-preview')).toBe('true')
           expect(await thinking.getByRole('button').getAttribute('aria-expanded')).toBe('false')
-          expect(await thinking.locator('[data-streaming]').isVisible()).toBe(true)
+          expect(await thinking.locator('[data-streaming]:not([inert] *)').isVisible()).toBe(true)
         }
         observedReasoning.resolve(undefined)
         return await settled
