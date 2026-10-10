@@ -276,12 +276,6 @@ export interface HeroAgentPresetOwnerProps {
   children?: never
 }
 
-/** The header's leading occupant derives its state from standard Session props. */
-export interface ConversationHeaderLeadingOwnerProps {
-  /** Marker field: the occupant receives no owner-specific values. */
-  children?: never
-}
-
 /** Header actions derive their state from standard Session props. */
 export interface ConversationHeaderActionOwnerProps {
   /** Marker field: entries receive no owner-specific values. */
