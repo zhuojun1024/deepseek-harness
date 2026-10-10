@@ -17,6 +17,7 @@ import { normalizeFontFamily, type FontRole } from '../src/theme-settings.ts'
 // Every fixture carries the resource hook the resources plugin merges into GlobalStandardProps.
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
 const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({ activePanelId: null })
+const useSidebarInfo: GlobalStandardProps['useSidebarInfo'] = selector => selector({ narrow: false, collapsed: false, headerVisible: false })
 
 afterEach(cleanup)
 
@@ -50,7 +51,7 @@ function mount(kind: FontRole = 'code', code = '') {
   const props: FontFamilyRowComponentProps = {
     useSessions: emptySessions(),
     useSessionStatus,
-    usePanelInfo, useSessionRetainInfo: () => undefined, useResource,
+    usePanelInfo, useSidebarInfo, useSessionRetainInfo: () => undefined, useResource,
     useWorkspaces: emptyWorkspaces(),
     useStore: bindSnapshotSelector(store),
     actions: store.actions,

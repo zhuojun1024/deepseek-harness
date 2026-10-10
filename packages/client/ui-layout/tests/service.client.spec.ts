@@ -48,7 +48,7 @@ describe('LayoutController', () => {
 
   it('forwards a one-way collapse to the store without touching selection', () => {
     const panels = fakePanels()
-    const service = new LayoutController(panels, () => true)
+    const service = new LayoutController(panels, () => true, createSnapshotStore({ activePanelId: null }))
 
     service.collapseSidebar()
 
