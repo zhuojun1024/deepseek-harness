@@ -16,6 +16,7 @@
   background: transparent;
   border: none;
   border-radius: 50%;
+  corner-shape: round;
   cursor: pointer;
 }
 
