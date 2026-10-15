@@ -4,7 +4,7 @@ import type { ShortcutCatalogEntry, ShortcutCommandId } from '@deepseek-ai/dsh-c
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
-import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { ReactNode } from 'react'
 import type {
   SidebarFooterActionOwnerProps, SidebarRootComponentProps, SidebarSectionOwnerProps,
@@ -57,6 +57,7 @@ function mountShell({ collapsed = false, width = 300, shortcuts = [] }: {
       usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
       useShortcuts={selector => selector(shortcuts)}
       useResource={useResource} useWorkspaces={neverHook}
+      {...allowAllAccess}
       startSession={startSession} toggleSidebar={toggleSidebar} t={t}
       renderSlot={((
         key: string,
@@ -118,6 +119,7 @@ describe('SidebarRoot shell', () => {
     render(<HeaderLeadingControls toggleSidebar={vi.fn()} startSession={vi.fn()} selectPanel={vi.fn()} t={t}
       usePanelInfo={neverHook} useSidebarInfo={useSidebarInfo} useSessions={neverHook} useSessionStatus={neverHook}
       useSessionRetainInfo={neverHook} useResource={useResource} useWorkspaces={neverHook}
+      {...allowAllAccess}
       usePanels={select => select([])} useShortcuts={select => select([shortcut])} />)
     const button = screen.getByRole('button', { name: 'New session' })
     expect(button.getAttribute('aria-keyshortcuts')).toBe('Control+N')
@@ -147,6 +149,7 @@ describe('SidebarRoot shell', () => {
       usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
       useShortcuts={selector => selector([])}
       useResource={useResource} useWorkspaces={neverHook}
+      {...allowAllAccess}
       startSession={vi.fn()} toggleSidebar={vi.fn()} t={t}
       renderSlot={((_key: string, _owner: unknown, options?: { fallback?: ReactNode }) =>
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
@@ -168,6 +171,7 @@ describe('SidebarRoot shell', () => {
       usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
       useShortcuts={selector => selector([])}
       useResource={useResource} useWorkspaces={neverHook}
+      {...allowAllAccess}
       startSession={vi.fn()} toggleSidebar={vi.fn()} t={t}
       renderSlot={((_key: string, _owner: unknown, options?: { fallback?: ReactNode }) =>
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
@@ -184,6 +188,7 @@ describe('SidebarRoot shell', () => {
       usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
       useShortcuts={selector => selector([])}
       useResource={useResource} useWorkspaces={neverHook}
+      {...allowAllAccess}
       startSession={vi.fn()} toggleSidebar={vi.fn()} t={t}
       renderSlot={((_key: string, _owner: unknown, options?: { fallback?: ReactNode }) =>
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
@@ -232,6 +237,7 @@ describe('SidebarRoot shell', () => {
       usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
       useShortcuts={selector => selector([])}
       useResource={useResource} useWorkspaces={neverHook}
+      {...allowAllAccess}
       startSession={vi.fn()} toggleSidebar={vi.fn()} t={t}
       renderSlot={((key: string) => key === 'sidebar.toggle.badge'
         ? <Tooltip label="Update — V1.2.3"><span data-testid="badge" /></Tooltip>
