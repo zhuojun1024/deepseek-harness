@@ -274,12 +274,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   openSession(target: SessionTarget): void {
-    this.replaceMain(target, this.lifetime.signal, 'reveal')
-    // A user-initiated navigation owns the full width: the sidebar yields its
-    // track (wide: closed; narrow: collapsed, so the rail/header-expand
-    // affordance is the way back). The startup auto-reconcile opens through
-    // restoreSelection and never reaches here, so it does not close.
-    this.ctx.layout.collapseSidebar()
+    this.revealMain(target, this.lifetime.signal)
   }
 
   openWorkspace(
@@ -306,7 +301,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       throw error
     }
     if (navigation.aborted) return
-    this.replaceMain(sessionId, navigation, 'reveal', beforeOpen)
+    this.revealMain(sessionId, navigation, beforeOpen)
   }
 
   async forkSession(
@@ -503,6 +498,22 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     this.selection.set({})
     previous?.release()
     this.ctx.layout.selectPanel(null)
+  }
+
+  /**
+   * Replace the main Session for a user-initiated navigation: the main area
+   * reveals the Conversation, and a narrow frame collapses its sidebar so the
+   * Conversation owns the full width (a wide frame keeps its sidebar state).
+   * Startup restoration replaces through replaceMain's 'preserve' instead, so
+   * it never closes a sidebar the user left open.
+   */
+  private revealMain(
+    target: SessionTarget,
+    signal: AbortSignal,
+    beforeOpen?: (sessionId: SessionId) => void,
+  ): void {
+    this.replaceMain(target, signal, 'reveal', beforeOpen)
+    this.ctx.layout.collapseSidebar()
   }
 
   private replaceMain(

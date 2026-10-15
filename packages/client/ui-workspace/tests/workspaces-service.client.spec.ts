@@ -434,10 +434,29 @@ describe('UiWorkspaceService', () => {
     expect(b.sessions.refreshProjections).not.toHaveBeenCalled()
   })
 
-  it('collapses the sidebar when a user opens or starts a Session', () => {
-    const b = bench({ sessions: sessionState([summary('current')]) })
-    b.uiWorkspace.openSession(sid('current'))
-    expect(b.collapseSidebar).toHaveBeenCalledOnce()
+  it('collapses the sidebar for every user navigation that reaches the main view', async () => {
+    const opened = bench({ sessions: sessionState([summary('current')]) })
+    opened.uiWorkspace.openSession(sid('current'))
+    expect(opened.collapseSidebar).toHaveBeenCalledOnce()
+
+    // A Workspace-backed New Session replaces the main view through the same
+    // user-gesture seam, so the sidebar yields there too.
+    const started = bench({
+      sessions: sessionState([]),
+      workspaces: workspaceState([workspace('a')]),
+    })
+    started.uiWorkspace.startSession(wid('a'))
+    await vi.waitFor(() => {
+      expect(started.sessions.retain).toHaveBeenLastCalledWith(sid('created-a'), { source: 'mainView' })
+    })
+    expect(started.collapseSidebar).toHaveBeenCalledOnce()
+
+    const switched = bench({
+      sessions: sessionState([], 'pending'),
+      workspaces: workspaceState([workspace('a')]),
+    })
+    await switched.uiWorkspace.openWorkspace(wid('a'))
+    expect(switched.collapseSidebar).toHaveBeenCalledOnce()
 
     // New Session with no Workspace falls through to the blank-hero clear path.
     const empty = bench()
@@ -1408,6 +1427,8 @@ describe('UiWorkspaceService', () => {
 
     expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(address, { source: 'mainView' })
     expect(b.sessions.refreshProjections).not.toHaveBeenCalled()
+    // Startup restoration opens with 'preserve': it keeps the sidebar the user left open.
+    expect(b.collapseSidebar).not.toHaveBeenCalled()
   })
 
   it('persists a catalog-resolved address after string subagent navigation', () => {
