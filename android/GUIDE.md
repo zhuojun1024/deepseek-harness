@@ -22,10 +22,13 @@
 - HTTPS-only、禁止 cleartext、禁止 mixed content、TLS 错误一律取消、禁止 file/content 访问；
 - 文件选择、下载（带 Cookie）、外部链接交给系统浏览器；
 - 登录后启动前台服务，通过独立的 API operator 订阅 `$events` 的 `api-session/status`；一轮 Agent 从 running 变为 idle（会话结束）且 App 不在前台时发通知；
-- 通知点击回到 App；前台服务常驻通知带“停止”；Android 13+ 启动时请求通知权限。
+- 完成通知优先显示会话标题；标题不可用时回退为“DSH 会话完成”；
+- 点击完成通知直接打开对应会话；点击常驻通知回到 App；前台服务常驻通知带“停止”；Android 13+ 启动时请求通知权限。
 
 ## 变更
 
+- 0.2.2：完成通知显示会话标题，点击通知直接打开对应会话；标题从 `session/list` 的 `projections.values.title` 读取，运行开始和完成时按需刷新，缺失时回退为“DSH 会话完成”；
+- 0.2.1：会话完成和登录失效通知改用新的高优先级通知渠道，显式使用系统默认提示音并启用震动；旧的静默通知渠道会被移除；
 - 0.2.0：新增后台会话完成通知（独立 API operator + `$events`，仅 App 不在前台时提醒）；新增通知权限、前台服务、通知渠道和通知小图标；`session/list` 预读当前 running 会话，避免监听启动时已在跑的任务漏提醒；token 失效时发“登录已失效”通知，点击直达登录页；
 - 0.1.1：修复首次登录时地址栏裸域名被误当成 token 的问题；图标换成白色背景 + 黑色虎鲸的自适应图标。
 
@@ -95,7 +98,7 @@ debug 包的 applicationId 带 `.debug` 后缀（`com.dsh.webview.debug`），�
    - token 也失效：回到登录页，粘贴新 token；
 6. 进入主页后启动后台监听服务（见下文）。
 
-## 后台完成通知（0.2.0）
+## 后台完成通知
 
 登录成功/下次直接进主页后，App 启动一个 `specialUse` 前台服务。服务不依赖 WebView 的 Cookie 或 JavaScript：
 
@@ -105,10 +108,12 @@ debug 包的 applicationId 带 `.debug` 后缀（`com.dsh.webview.debug`），�
 2. 打开 `wss://<host>/api/remote.mux`，发送 `$events` 的 `open`；
 3. 在打开事件流前先调用一次 `session/list`（`payload.args._request = {}`），把当前 `running: true` 的会话放进内存集合，避免“服务刚启动时任务已经在跑”的场景漏提醒；
 4. 监听 `api-session/status` 事件，参数是 `(sessionId, running)`：
-   - `running: true` 记录；
+   - `running: true` 记录，并在标题缓存缺失时补一次 `session/list`；
    - `running: false` 且之前在集合里：移除；只有当 App 没有窗口焦点时发通知；
-5. App 通过 `onWindowFocusChanged`/`onPause`/`onResume` 维护前台标志；回到前台后完成的轮次不会补发通知；
-6. 服务断线按 2s→60s 退避重连；每次重连重新换取 operator Cookie（peer 随 WebSocket 关闭而释放）；token 失效（401/403）时停止服务，并发一条“登录已失效”通知；点击通知打开登录页（地址保留、token 清空），重新登录后会再次启动。
+5. 通知标题优先使用 `session/list` 返回的 `items[].projections.values.title`；缓存缺失时在通知前用短超时补查，仍取不到则显示“DSH 会话完成”，不显示 sessionId；
+6. 通知携带 sessionId，点击后 `MainActivity` 把 DSH Web 持久化的 `dsh.sessions.current` 选择写成该会话；当前已经选中该会话时不刷新，否则刷新页面恢复对应会话窗口；
+7. App 通过 `onWindowFocusChanged`/`onPause`/`onResume` 维护前台标志；回到前台后完成的轮次不会补发通知；
+8. 服务断线按 2s→60s 退避重连；每次重连重新换取 operator Cookie（peer 随 WebSocket 关闭而释放）；token 失效（401/403）时停止服务，并发一条“登录已失效”通知；点击通知打开登录页（地址保留、token 清空），重新登录后会再次启动。
 
 ### 权限与系统限制
 
@@ -117,6 +122,8 @@ debug 包的 applicationId 带 `.debug` 后缀（`com.dsh.webview.debug`），�
 - token 失效时会发一条独立的“登录已失效”通知（高优先级渠道“登录提醒”），点击后会直接打开登录页；如果通知权限被拒绝，则只能手动清数据/重新登录；
 - 小米澎湃 OS 需要允许 DSH 的通知，并把省电策略设为“无限制”/允许自启动（不同版本路径不同）；否则系统可能在锁屏/后台一段时间后杀掉服务；
 - 前台服务常驻通知是系统要求，不代表“前台有会话完成时也通知”；完成通知只在 App 无焦点时发；
+- 0.2.1 起，完成通知和登录失效通知使用高优先级渠道，使用系统默认提示音并启用震动；常驻的“后台监听中”通知仍是低优先级静默通知，避免监听启动时反复打扰；
+- 如果完成通知仍然无声，检查系统是否处于静音/免打扰，以及 DSH 通知渠道的“声音/震动”开关；App 不会绕过系统的免打扰设置；
 - 前台服务通知的“停止”会停止监听；下次打开 App 会重新启动。想临时不提醒可以点它，或关闭通知权限。
 
 ### 超级岛
@@ -157,8 +164,8 @@ debug 包的 applicationId 带 `.debug` 后缀（`com.dsh.webview.debug`），�
 
 ## 构建验证
 
-- release：`com.dsh.webview` 0.2.0（versionCode 3），minSdk 30 / targetSdk 36，APK Signature Scheme v2，`zipalign -c 4` 通过；
-- 权限：`INTERNET`、`POST_NOTIFICATIONS`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_DATA_SYNC`、`FOREGROUND_SERVICE_SPECIAL_USE`；
+- release：`com.dsh.webview` 0.2.2（versionCode 5），minSdk 30 / targetSdk 36，APK Signature Scheme v2，`zipalign -c 4` 通过；
+- 权限：`INTERNET`、`POST_NOTIFICATIONS`、`VIBRATE`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_DATA_SYNC`、`FOREGROUND_SERVICE_SPECIAL_USE`；
 - `lintRelease`：0 errors，6 warnings（备份属性、布局合并、按钮样式、OkHttp 有新版本等提示，不影响构建）；
 - 用本地 DSH web 实例验证了：
   - `GET /connect?token=...&interactions=answer` 返回 302 和 operator Cookie；
@@ -166,7 +173,7 @@ debug 包的 applicationId 带 `.debug` 后缀（`com.dsh.webview.debug`），�
   - 在同一 WebSocket 打开期间用 operator Cookie 调用 `POST /api/session/list`，`payload.args._request = {}` 返回 200；修正前 `args: {}` 会报 `missing "_request"`；
   - 未触发真实 running→idle 轮次（临时实例没有跑模型），状态事件解析按源码字段实现；
 - 线上实例的 `https://<host>/` 与 `/?token=invalid` 在 0.1.1 时返回 401；0.2.0 复用同一登录链路；
-- 构建环境未连接真机/模拟器；0.2.0 的通知权限、前台服务、HyperOS 后台存活、实际完成提醒需要在手机上确认。
+- 构建环境未连接真机/模拟器；0.2.2 的标题显示、通知点击跳转、HyperOS 后台存活和实际完成提醒需要在手机上确认。
 
 ## 已知限制
 
@@ -177,7 +184,8 @@ debug 包的 applicationId 带 `.debug` 后缀（`com.dsh.webview.debug`），�
 - 后台遇到审批/用户提问时，服务不会代替用户回答，任务会停在等待状态，因此不会触发“完成”通知；
 - `api-session/status` 只表示 Agent 从 running 变 idle，abort/error 也会触发，因此通知里的“已完成”在失败时也按“本轮结束”理解；
 - 监听启动前/重连窗口内已经结束的轮次可能漏掉；服务启动时会用 `session/list` 补一次当前 running 状态，但不能覆盖所有断线窗口；
-- 通知正文只有 sessionId 后 8 位，没有会话标题；
+- 完成通知的标题来自 `session/list` 的标题投影；极新的会话或服务端没有标题缓存时可能取不到，此时回退为“DSH 会话完成”，不会显示 sessionId；缺失标题时会先做一次短超时查询，网络慢时声音/震动可能延迟数秒；
+- 点击通知通过 DSH Web 的 `dsh.sessions.current` 选择键恢复会话；如果 Web 客户端未来更换该键或修改启动恢复逻辑，APK 需要同步更新；
 - 没有自签名证书例外；证书必须是系统信任的 CA 签发；
 - 没有自动更新。
 

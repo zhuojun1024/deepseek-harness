@@ -56,6 +56,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.window.OnBackInvokedDispatcher;
 
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -86,6 +88,7 @@ public final class MainActivity extends Activity {
     private static final int REQ_NOTIFICATIONS = 1002;
     private static final int AUTH_TIMEOUT_MS = 30_000;
     static final String EXTRA_FORCE_LOGIN = "force_login";
+    static final String EXTRA_SESSION_ID = "session_id";
 
     private FrameLayout root;
     private ScrollView loginScroll;
@@ -109,6 +112,7 @@ public final class MainActivity extends Activity {
     private String baseUrl;
     private String pendingHost;
     private String pendingToken;
+    private String pendingSessionId;
     private boolean authLoading;
     private String authError;
 
@@ -126,6 +130,11 @@ public final class MainActivity extends Activity {
         configureWebView();
         configureLogin();
         maybeRequestNotificationPermission();
+        if (savedInstanceState == null) {
+            pendingSessionId = takeSessionId(getIntent());
+        } else {
+            getIntent().removeExtra(EXTRA_SESSION_ID);
+        }
         if (Build.VERSION.SDK_INT >= 33) {
             BackCompat33.register(this, this::handleBack);
         }
@@ -469,6 +478,7 @@ public final class MainActivity extends Activity {
         errorPanel.setVisibility(View.GONE);
         webContainer.setVisibility(View.VISIBLE);
         startSessionMonitor();
+        webView.postDelayed(this::maybeOpenPendingSession, 300);
     }
 
     private void startSessionMonitor() {
@@ -554,6 +564,41 @@ public final class MainActivity extends Activity {
         tokenInput.clearFocus();
     }
 
+    /**
+     * Restores the Session named by a completion notification. DSH Web persists its selected
+     * Session in {@code dsh.sessions.current}; writing that key and reloading lets the existing
+     * startup restoration open the exact conversation without adding a server-side deep link.
+     */
+    private void maybeOpenPendingSession() {
+        String sessionId = pendingSessionId;
+        if (sessionId == null || authLoading || webView == null
+                || webContainer.getVisibility() != View.VISIBLE
+                || errorPanel.getVisibility() == View.VISIBLE) return;
+        String url = webView.getUrl();
+        if (url == null || url.startsWith("about:") || UrlTools.containsToken(url)
+                || !UrlTools.sameOrigin(baseUrl, url)) return;
+        if (webView.getProgress() < 100) return;
+        pendingSessionId = null;
+        String target = JSONObject.quote(sessionId);
+        String script = "(function(){try{"
+                + "var target=" + target + ";"
+                + "var current=null;"
+                + "try{current=JSON.parse(localStorage.getItem('dsh.sessions.current')||'null');}catch(e){}"
+                + "if(!current||current.sessionId!==target){"
+                + "localStorage.setItem('dsh.sessions.current',JSON.stringify({sessionId:target}));"
+                + "location.reload();"
+                + "}"
+                + "}catch(e){}})();";
+        webView.evaluateJavascript(script, null);
+    }
+
+    private static String takeSessionId(Intent intent) {
+        if (intent == null) return null;
+        String sessionId = intent.getStringExtra(EXTRA_SESSION_ID);
+        intent.removeExtra(EXTRA_SESSION_ID);
+        return sessionId == null || sessionId.isEmpty() ? null : sessionId;
+    }
+
     private void handleBack() {
         if (loadingOverlay.getVisibility() == View.VISIBLE) {
             finish();
@@ -610,6 +655,7 @@ public final class MainActivity extends Activity {
         AppVisibility.setForeground(true);
         if (webView != null) {
             webView.onResume();
+            webView.post(this::maybeOpenPendingSession);
         }
     }
 
@@ -617,8 +663,15 @@ public final class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        if (intent != null && intent.getBooleanExtra(EXTRA_FORCE_LOGIN, false)) {
+        if (intent == null) return;
+        if (intent.getBooleanExtra(EXTRA_FORCE_LOGIN, false)) {
             forceLogin();
+            return;
+        }
+        String sessionId = takeSessionId(intent);
+        if (sessionId != null) {
+            pendingSessionId = sessionId;
+            maybeOpenPendingSession();
         }
     }
 
@@ -864,7 +917,10 @@ public final class MainActivity extends Activity {
         @Override
         public void onPageFinished(WebView view, String url) {
             webProgress.setVisibility(View.GONE);
-            if (!authLoading) return;
+            if (!authLoading) {
+                view.post(MainActivity.this::maybeOpenPendingSession);
+                return;
+            }
             // This callback also fires for subframes; checkAuthResult reads the main-frame URL
             // itself, so any callback is a useful wake-up after the redirect.
             final int generation = authGeneration.get();

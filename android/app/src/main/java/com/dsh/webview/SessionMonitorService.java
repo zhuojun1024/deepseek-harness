@@ -11,10 +11,14 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Icon;
+import android.media.AudioAttributes;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.provider.Settings;
 import android.util.Log;
 import android.Manifest;
 
@@ -35,6 +39,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -60,8 +68,10 @@ public final class SessionMonitorService extends Service {
     static final String ACTION_STOP = "com.dsh.webview.action.STOP_MONITOR";
 
     private static final String MONITOR_CHANNEL = "dsh_monitor";
-    private static final String COMPLETE_CHANNEL = "dsh_complete";
-    private static final String LOGIN_CHANNEL = "dsh_login";
+    private static final String COMPLETE_CHANNEL = "dsh_complete_v2";
+    private static final String LOGIN_CHANNEL = "dsh_login_v2";
+    private static final String LEGACY_COMPLETE_CHANNEL = "dsh_complete";
+    private static final String LEGACY_LOGIN_CHANNEL = "dsh_login";
     private static final int MONITOR_NOTIFICATION_ID = 0x1001;
     private static final int LOGIN_NOTIFICATION_ID = 0x1002;
     private static final long RECONNECT_MIN_MS = 2_000;
@@ -71,6 +81,13 @@ public final class SessionMonitorService extends Service {
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Set<String> runningSessions = Collections.synchronizedSet(new HashSet<>());
+    private final Map<String, String> sessionTitles = new ConcurrentHashMap<>();
+    private final Set<String> titleLookups = ConcurrentHashMap.newKeySet();
+    private final ExecutorService titleExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "dsh-monitor-titles");
+        thread.setDaemon(true);
+        return thread;
+    });
     private final AtomicInteger generation = new AtomicInteger();
     private final AtomicBoolean connecting = new AtomicBoolean();
     private final Runnable reconnect = this::connect;
@@ -123,6 +140,9 @@ public final class SessionMonitorService extends Service {
         stopped = true;
         generation.incrementAndGet();
         main.removeCallbacks(reconnect);
+        titleExecutor.shutdownNow();
+        titleLookups.clear();
+        sessionTitles.clear();
         apiCookie = null;
         WebSocket current = socket;
         socket = null;
@@ -216,12 +236,18 @@ public final class SessionMonitorService extends Service {
      */
     private static JSONObject postRpc(String host, String cookie, String endpoint, String body)
             throws IOException {
+        return postRpc(host, cookie, endpoint, body, 10_000);
+    }
+
+    private static JSONObject postRpc(
+            String host, String cookie, String endpoint, String body, int readTimeoutMs)
+            throws IOException {
         URL url = new URL(host + "api/" + endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         try {
             conn.setRequestMethod("POST");
-            conn.setConnectTimeout(10_000);
-            conn.setReadTimeout(10_000);
+            conn.setConnectTimeout(Math.min(10_000, readTimeoutMs));
+            conn.setReadTimeout(readTimeoutMs);
             conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Cookie", cookie);
@@ -258,9 +284,12 @@ public final class SessionMonitorService extends Service {
             JSONArray items = value == null ? null : value.optJSONArray("items");
             if (items == null) return;
             runningSessions.clear();
+            sessionTitles.clear();
             for (int i = 0; i < items.length(); i++) {
                 JSONObject item = items.optJSONObject(i);
-                if (item == null || !item.optBoolean("running")) continue;
+                if (item == null) continue;
+                rememberTitle(item);
+                if (!item.optBoolean("running")) continue;
                 String id = item.optString("sessionId", "");
                 if (!id.isEmpty()) runningSessions.add(id);
             }
@@ -278,13 +307,20 @@ public final class SessionMonitorService extends Service {
             if (!"item".equals(frame.optString("type"))) return;
             JSONObject item = frame.optJSONObject("value");
             if (item == null || !"emit".equals(item.optString("type"))) return;
-            if (!"api-session/status".equals(item.optString("event"))) return;
+            String event = item.optString("event");
             JSONArray args = item.optJSONArray("args");
-            if (args == null || args.length() < 2) return;
+            if (args == null) return;
+            if ("api-session/added".equals(event)) {
+                JSONObject summary = args.optJSONObject(0);
+                if (summary != null) rememberTitle(summary);
+                return;
+            }
+            if (!"api-session/status".equals(event) || args.length() < 2) return;
             String sessionId = args.optString(0, "");
             if (sessionId.isEmpty()) return;
             if (args.optBoolean(1, false)) {
                 runningSessions.add(sessionId);
+                ensureSessionTitle(sessionId);
                 return;
             }
             if (runningSessions.remove(sessionId) && !AppVisibility.isForeground()) {
@@ -293,6 +329,86 @@ public final class SessionMonitorService extends Service {
         } catch (Exception e) {
             Log.w(TAG, "Ignoring a malformed event frame", e);
         }
+    }
+
+    /**
+     * Reads the durable title from a session-list row or an added summary. The title is a session
+     * projection; list rows carry it under {@code projections.values} rather than at the top level.
+     */
+    private void rememberTitle(JSONObject summary) {
+        String sessionId = stringField(summary, "sessionId");
+        String title = titleOf(summary);
+        if (!sessionId.isEmpty() && !title.isEmpty()) sessionTitles.put(sessionId, title);
+    }
+
+    private static String titleOf(JSONObject summary) {
+        String direct = stringField(summary, "title");
+        if (!direct.isEmpty()) return direct;
+        JSONObject projections = summary.optJSONObject("projections");
+        JSONObject values = projections == null ? null : projections.optJSONObject("values");
+        return values == null ? "" : stringField(values, "title");
+    }
+
+    private static String stringField(JSONObject object, String key) {
+        Object value = object.opt(key);
+        return value instanceof String ? ((String) value).trim() : "";
+    }
+
+    private void ensureSessionTitle(String sessionId) {
+        if (stopped || sessionTitles.containsKey(sessionId) || !titleLookups.add(sessionId)) return;
+        String cookie = apiCookie;
+        if (cookie == null) {
+            titleLookups.remove(sessionId);
+            return;
+        }
+        try {
+            titleExecutor.execute(() -> {
+                try {
+                    fetchSessionTitle(sessionId, cookie);
+                } finally {
+                    titleLookups.remove(sessionId);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            titleLookups.remove(sessionId);
+        }
+    }
+
+    /**
+     * Refreshes all cached titles through the same list endpoint the monitor already uses. The
+     * short timeout keeps a slow server from delaying a completion alert; callers fall back to the
+     * cached title or the generic notification title.
+     */
+    private String fetchSessionTitle(String sessionId, String cookie) {
+        String cached = sessionTitles.get(sessionId);
+        String host;
+        try {
+            host = new TokenStore(this).getHost();
+        } catch (RuntimeException e) {
+            return cached;
+        }
+        if (host == null || host.isEmpty()) return cached;
+        String body = "{\"type\":\"client-request\",\"rpcId\":\"" + UUID.randomUUID()
+                + "\",\"method\":\"session/list\",\"payload\":{\"args\":{\"_request\":{}}}}";
+        try {
+            JSONObject response = postRpc(host, cookie, "session/list", body, 2_500);
+            JSONObject result = response.optJSONObject("result");
+            if (result == null || !result.optBoolean("ok")) return cached;
+            JSONObject value = result.optJSONObject("value");
+            JSONArray items = value == null ? null : value.optJSONArray("items");
+            if (items == null) return cached;
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject item = items.optJSONObject(i);
+                if (item != null) rememberTitle(item);
+            }
+        } catch (AuthException e) {
+            apiCookie = null;
+            Log.w(TAG, "Operator cookie was rejected while reading a session title");
+        } catch (IOException | RuntimeException e) {
+            Log.w(TAG, "Unable to read a session title", e);
+        }
+        String title = sessionTitles.get(sessionId);
+        return title == null || title.isEmpty() ? cached : title;
     }
 
     @SuppressLint("InlinedApi")
@@ -305,14 +421,38 @@ public final class SessionMonitorService extends Service {
     @SuppressLint("InlinedApi")
     private void notifySessionComplete(String sessionId) {
         if (!canNotify()) return;
+        String cached = sessionTitles.get(sessionId);
+        if (cached != null && !cached.isEmpty()) {
+            postCompletionNotification(sessionId, cached);
+            return;
+        }
+        String cookie = apiCookie;
+        if (cookie == null) {
+            postCompletionNotification(sessionId, null);
+            return;
+        }
+        try {
+            titleExecutor.execute(() -> {
+                String title = fetchSessionTitle(sessionId, cookie);
+                if (!stopped) main.post(() -> postCompletionNotification(sessionId, title));
+            });
+        } catch (RejectedExecutionException e) {
+            postCompletionNotification(sessionId, null);
+        }
+    }
+
+    @SuppressLint("InlinedApi")
+    private void postCompletionNotification(String sessionId, String title) {
+        if (stopped || !canNotify() || AppVisibility.isForeground()) return;
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager == null) return;
-        String shortId = sessionId.length() <= 8 ? sessionId : sessionId.substring(sessionId.length() - 8);
-        PendingIntent content = openAppIntent();
+        String contentTitle = title == null ? "" : title.trim();
+        if (contentTitle.isEmpty()) contentTitle = getString(R.string.notification_complete_title);
+        PendingIntent content = openSessionIntent(sessionId);
         Notification notification = new Notification.Builder(this, COMPLETE_CHANNEL)
                 .setSmallIcon(R.drawable.ic_stat_dsh)
-                .setContentTitle(getString(R.string.notification_complete_title))
-                .setContentText(getString(R.string.notification_complete_text, shortId))
+                .setContentTitle(contentTitle)
+                .setContentText(getString(R.string.notification_complete_text))
                 .setContentIntent(content)
                 .setAutoCancel(true)
                 .setCategory(Notification.CATEGORY_MESSAGE)
@@ -366,16 +506,33 @@ public final class SessionMonitorService extends Service {
                 getString(R.string.notification_channel_complete),
                 NotificationManager.IMPORTANCE_HIGH);
         complete.setDescription(getString(R.string.notification_channel_complete_desc));
-        complete.setShowBadge(true);
+        configureAlertChannel(complete);
         NotificationChannel login = new NotificationChannel(
                 LOGIN_CHANNEL,
                 getString(R.string.notification_channel_login),
                 NotificationManager.IMPORTANCE_HIGH);
         login.setDescription(getString(R.string.notification_channel_login_desc));
-        login.setShowBadge(true);
+        configureAlertChannel(login);
         manager.createNotificationChannel(monitor);
         manager.createNotificationChannel(complete);
         manager.createNotificationChannel(login);
+        // Channels are immutable after creation. Replace the silent 0.2.0 channels so an
+        // upgrade cannot keep their old sound/vibration settings.
+        manager.deleteNotificationChannel(LEGACY_COMPLETE_CHANNEL);
+        manager.deleteNotificationChannel(LEGACY_LOGIN_CHANNEL);
+    }
+
+    private void configureAlertChannel(NotificationChannel channel) {
+        channel.setShowBadge(true);
+        channel.enableVibration(true);
+        channel.setVibrationPattern(new long[]{0, 300, 200, 300});
+        Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        if (sound == null) sound = Settings.System.DEFAULT_NOTIFICATION_URI;
+        AudioAttributes attributes = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build();
+        if (sound != null) channel.setSound(sound, attributes);
     }
 
     private Notification buildMonitorNotification() {
@@ -409,6 +566,19 @@ public final class SessionMonitorService extends Service {
                         | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         return PendingIntent.getActivity(
                 this, 0, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    private PendingIntent openSessionIntent(String sessionId) {
+        Intent open = new Intent(this, MainActivity.class)
+                .setData(Uri.parse("dsh-session://" + Uri.encode(sessionId)))
+                .putExtra(MainActivity.EXTRA_SESSION_ID, sessionId)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        int requestCode = 0x3000 + (sessionId.hashCode() & 0x0FFF);
+        return PendingIntent.getActivity(
+                this, requestCode, open,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private void startForegroundCompat(Notification notification) {
