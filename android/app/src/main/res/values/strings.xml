@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DSH</string>
+    <string name="login_subtitle">连接你的 DeepSeek Harness</string>
+    <string name="label_server">服务器地址</string>
+    <string name="hint_server">https://your-host</string>
+    <string name="label_token">Token</string>
+    <string name="hint_token">粘贴 dsh web 启动 URL 里的 token</string>
+    <string name="show_token">显示 token</string>
+    <string name="connect">连接</string>
+    <string name="login_hint">地址默认走 https。Token 在 dsh web 启动输出的 URL 里，?token= 后面那一段；服务器重启或重新部署后 token 会变化，需要重新输入。</string>
+    <string name="error_server_required">请输入服务器地址</string>
+    <string name="error_token_required">请输入 token</string>
+    <string name="error_token_space">token 不能包含空格</string>
+    <string name="loading_connecting">正在连接…</string>
+    <string name="loading_verifying">正在验证 token…</string>
+    <string name="loading_logging_in">正在登录…</string>
+    <string name="retry">重试</string>
+    <string name="edit_server">修改服务器</string>
+    <string name="web_error_title">无法加载 DSH</string>
+    <string name="download_started">已开始下载</string>
+    <string name="download_blob">这个下载需要桌面端完成</string>
+    <string name="renderer_crashed">WebView 渲染进程崩溃，正在恢复…</string>
+    <string name="save_failed">登录成功，但保存 token 失败：%1$s</string>
+    <string name="notification_channel_monitor">后台会话监听</string>
+    <string name="notification_channel_monitor_desc">保持与 DSH 服务端的连接，以便会话完成时提醒</string>
+    <string name="notification_monitor_title">DSH 后台监听中</string>
+    <string name="notification_monitor_text">会话完成时会在通知栏提醒</string>
+    <string name="notification_monitor_stop">停止</string>
+    <string name="notification_channel_complete">会话完成</string>
+    <string name="notification_channel_complete_desc">DSH 会话完成的提醒</string>
+    <string name="notification_complete_title">DSH 会话完成</string>
+    <string name="notification_complete_text">会话 %1$s 已完成，点击回到 DSH</string>
+    <string name="notification_permission_denied">未开启通知权限，后台完成提醒不会显示</string>
+    <string name="login_expired">后台监听登录已失效，请粘贴新的 token（地址已保留）</string>
+    <string name="notification_login_title">DSH 登录已失效</string>
+    <string name="notification_login_text">点击粘贴新的 token，恢复后台完成提醒</string>
+    <string name="notification_channel_login">登录提醒</string>
+    <string name="notification_channel_login_desc">后台监听 token 失效时提醒重新登录</string>
+</resources>
