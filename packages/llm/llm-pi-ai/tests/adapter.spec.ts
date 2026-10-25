@@ -129,7 +129,7 @@ describe('PiAiAdapter provider routing', () => {
     const server = await mockServer([{ events: textEvents }])
     const ctx = await harness(server.url, { sessionHeader: 'x-opencode-session' })
     await assemble(ctx, {
-      model: 'deepseek-v4-flash',
+      model: 'deepseek-flash',
       messages: [],
       sessionId: brandString<Branded<'SessionId'>>('session-1'),
     })
@@ -139,7 +139,7 @@ describe('PiAiAdapter provider routing', () => {
   it('omits the session header when the request has no session id', async () => {
     const server = await mockServer([{ events: textEvents }])
     const ctx = await harness(server.url, { sessionHeader: 'x-opencode-session' })
-    await assemble(ctx, { model: 'deepseek-v4-flash', messages: [] })
+    await assemble(ctx, { model: 'deepseek-flash', messages: [] })
     expect(server.headers[0]?.['x-opencode-session']).toBeUndefined()
   })
 

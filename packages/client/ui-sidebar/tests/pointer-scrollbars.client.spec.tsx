@@ -16,7 +16,8 @@ import { en } from '../src/client/locales.ts'
 // Every fixture carries the resource hook the resources plugin merges into GlobalStandardProps.
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
 const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({ activePanelId: null })
-const useSidebarInfo: GlobalStandardProps['useSidebarInfo'] = selector => selector({ narrow: false, collapsed: false, headerVisible: false })
+const useSidebarInfo: GlobalStandardProps['useSidebarInfo'] =
+  selector => selector({ narrow: false, collapsed: false, headerVisible: false })
 
 /** Pinned column box; the shell compares pointer coordinates against it. */
 const COLUMN_WIDTH = 280
@@ -44,10 +45,12 @@ function mountColumn(): { column: HTMLElement; quiet: () => boolean } {
       collapsed={false} width={300}
       useSessions={neverHook} useSessionStatus={useSessionStatus} useSessionRetainInfo={neverHook}
       usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
+      useEntryPins={selector => selector([])}
+      useEntryActions={selector => selector(false)} setPinned={vi.fn()}
       useShortcuts={selector => selector([])}
       useResource={useResource} useWorkspaces={neverHook}
       {...allowAllAccess}
-      startSession={vi.fn()} toggleSidebar={vi.fn()} t={t}
+      startSession={vi.fn()} toggleSidebar={vi.fn()} trackEntryClick={vi.fn()} t={t}
       renderSlot={((_key: string, owner: SidebarSectionOwnerProps) =>
         <div data-testid="region" data-wide={owner.wide} />) as SidebarRootComponentProps['renderSlot']}
     />,
