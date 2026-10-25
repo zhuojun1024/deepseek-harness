@@ -31,6 +31,10 @@ export class RecordCredentials {
 }
 
 /** Provide the record operations Connection needs during authentication setup. */
-export function provideBrowserCredentials(ctx: Context): void {
-  ctx.provide('credentials', new RecordCredentials() as unknown as CredentialProvider)
+export function provideBrowserCredentials(
+  ctx: Context,
+  store: RecordCredentials = new RecordCredentials(),
+): RecordCredentials {
+  ctx.provide('credentials', store as unknown as CredentialProvider)
+  return store
 }

@@ -453,6 +453,12 @@ export interface ConnectionConfig {
   trustedHosts?: string[]
   /** Absolute browser and API cookie lifetime in days. Default: 30. */
   cookieMaxAgeDays?: number
+  /**
+   * Long-lived launch token accepted at the root exchange and `/connect` in
+   * addition to the per-process token. Use deployment secret storage and change
+   * it to revoke the previous value. Omit to accept only the per-process token.
+   */
+  permanentToken?: string
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
 }

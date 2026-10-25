@@ -105,6 +105,12 @@ export interface ConnectionConfig {
   trustedHosts?: string[]
   /** Absolute browser and API cookie lifetime in days. Default: 30. */
   cookieMaxAgeDays?: number
+  /**
+   * Long-lived launch token accepted at the root exchange and `/connect` in
+   * addition to the per-process token. Use deployment secret storage and change
+   * it to revoke the previous value. Omit to accept only the per-process token.
+   */
+  permanentToken?: string
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
 }
@@ -113,6 +119,7 @@ export const Config: z<ConnectionConfig> = z.object({
   recovery: ConnectionRecoveryConfigSchema.default({}),
   trustedHosts: z.array(String).default([]),
   cookieMaxAgeDays: z.natural().min(1).default(30),
+  permanentToken: z.string().min(32).pattern(/^[\x21-\x7e]+$/u).role('secret').required(false),
   maxRequestBodyBytes: z.natural().min(1).default(DEFAULT_MAX_REQUEST_BODY_BYTES),
 })
 
@@ -128,6 +135,7 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
   // The Loader resolves schema defaults; hand-built test contexts may pass none.
   const trustedHosts = config?.trustedHosts ?? []
   const cookieMaxAgeDays = config?.cookieMaxAgeDays ?? 30
+  const permanentToken = config?.permanentToken
   const maxRequestBodyBytes = config?.maxRequestBodyBytes ?? DEFAULT_MAX_REQUEST_BODY_BYTES
   // Config boundary: a malformed entry fails the load loudly here rather than
   // silently authorizing its hostname prefix at request time.
@@ -136,7 +144,7 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
   const connection = new HostConnectionService(
     ctx,
     trustedHosts,
-    await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays),
+    await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays, permanentToken),
   )
   ctx.inject(['webServer'], (webCtx) => {
     assertImageBodyCapacity(webCtx, maxRequestBodyBytes)

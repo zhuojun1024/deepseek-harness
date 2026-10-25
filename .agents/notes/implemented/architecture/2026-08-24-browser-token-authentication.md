@@ -34,7 +34,7 @@ Unit coverage pins process-token retention across Connection reloads, one secret
 
 **Keep a method-specific privileged list and restrict stored credentials to configured targets.** The list can omit new endpoints and does not constrain callers that already control a tool-capable Session. A `discoverModels` target rule would not form a security boundary because the same authenticated principal can update settings and run commands. Uniform authentication covers the operation that grants process control.
 
-**Persist or accept the launch token as an API bearer.** A durable launch token would become a second long-lived credential, while Authorization-header support would add a non-browser client contract with no current consumer. The process token performs one browser-cookie exchange only.
+**Persist or accept the launch token as an API bearer.** A durable launch token would become a second long-lived credential, while Authorization-header support would add a non-browser client contract with no current consumer. The process token performs one browser-cookie exchange only. The opt-in configured permanent token now partially supersedes this alternative; see [configured permanent launch token](2026-10-25-configured-permanent-launch-token.md).
 
 **Rotate the signing secret on every restart.** This prevents an existing browser from reconnecting after an ordinary DSH restart. Persisting only the signing secret keeps that workflow while process-token rotation limits the startup URL to one process lifetime.
 

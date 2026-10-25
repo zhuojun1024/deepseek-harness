@@ -211,6 +211,7 @@ export class BrowserAuth {
     processOwner: object,
     private readonly secret: Buffer,
     maxAgeDays: number,
+    private readonly permanentToken?: string,
   ) {
     this.launchToken = processLaunchToken(processOwner)
     this.maxAgeMilliseconds = maxAgeDays * DAY_MILLISECONDS
@@ -226,14 +227,16 @@ export class BrowserAuth {
    * @param processOwner - root application context retaining one token across Connection reloads.
    * @param credentials - persistent credential provider for the Web profile.
    * @param maxAgeDays - positive absolute browser-cookie lifetime in days.
+   * @param permanentToken - optional configured token accepted alongside the process token.
    * @returns initialized authentication owner with the process owner's launch token.
    */
   static async create(
     processOwner: object,
     credentials: CredentialProvider,
     maxAgeDays: number,
+    permanentToken?: string,
   ): Promise<BrowserAuth> {
-    return new BrowserAuth(processOwner, await initializeSecret(credentials), maxAgeDays)
+    return new BrowserAuth(processOwner, await initializeSecret(credentials), maxAgeDays, permanentToken)
   }
 
   /**
@@ -245,6 +248,17 @@ export class BrowserAuth {
     const url = new URL(baseUrl)
     url.searchParams.set(TOKEN_QUERY, this.launchToken)
     return url.href
+  }
+
+  /**
+   * Compare one presented launch token with the process token and the optional
+   * configured long-lived token.
+   * @param presented - token read from the request query string.
+   * @returns true when either accepted token matches.
+   */
+  private matchesLaunchToken(presented: string): boolean {
+    if (tokenMatches(presented, this.launchToken)) return true
+    return this.permanentToken !== undefined && tokenMatches(presented, this.permanentToken)
   }
 
   /**
@@ -267,7 +281,7 @@ export class BrowserAuth {
     if (tokens.length > 0) {
       const authority = requestAudience(req.headers, secure)
       if (req.method === 'GET' && url.pathname === '/' && tokens.length === 1
-        && authority !== undefined && tokenMatches(tokens.join(''), this.launchToken)) {
+        && authority !== undefined && this.matchesLaunchToken(tokens.join(''))) {
         const issuedAt = Date.now()
         const expiresAt = issuedAt + this.maxAgeMilliseconds
         const value = encodeCookie({
@@ -328,7 +342,7 @@ export class BrowserAuth {
     const tokens = url.searchParams.getAll(TOKEN_QUERY)
     const authority = requestAudience(req.headers, secure)
     if (req.method !== 'GET' || url.pathname !== CONNECT_PATH || tokens.length !== 1
-      || authority === undefined || !tokenMatches(tokens.join(''), this.launchToken)) {
+      || authority === undefined || !this.matchesLaunchToken(tokens.join(''))) {
       this.writeUnauthorized(req, res)
       return
     }

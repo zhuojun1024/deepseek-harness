@@ -56,8 +56,9 @@ function createAuth(
   store: RecordCredentials,
   maxAgeDays = 30,
   processOwner: object = {},
+  permanentToken?: string,
 ): Promise<BrowserAuth> {
-  return BrowserAuth.create(processOwner, credentials(store), maxAgeDays)
+  return BrowserAuth.create(processOwner, credentials(store), maxAgeDays, permanentToken)
 }
 
 function request(url: string, authority = '127.0.0.1:3080', init?: {
@@ -207,6 +208,56 @@ describe('BrowserAuth', () => {
         'referrer-policy': 'no-referrer',
       },
     })
+  })
+
+  it('accepts a configured permanent token at both launch exchanges', async () => {
+    const store = new RecordCredentials()
+    const permanentToken = 'configured-permanent-token-value-1234567890'
+    const auth = await createAuth(store, 30, {}, permanentToken)
+    const authority = '127.0.0.1:3080'
+    const processToken = new URL(auth.authenticatedUrl(`http://${authority}`)).searchParams.get('token')
+    if (processToken === null) throw new Error('process token missing')
+    expect(processToken).not.toBe(permanentToken)
+
+    const root = response()
+    expect(auth.authorizeIndex(
+      request(`/?token=${encodeURIComponent(permanentToken)}`, authority), root.value,
+    )).toBe(false)
+    expect(root.state.status).toBe(303)
+    expect(root.state.headers?.['set-cookie']).toContain('HttpOnly')
+
+    const publish = vi.fn(() => 'permanent-operator' as PeerId)
+    const connect = response()
+    auth.authorizeConnect(
+      request(`/connect?token=${encodeURIComponent(permanentToken)}&interactions=answer`, authority),
+      connect.value,
+      false,
+      publish,
+    )
+    expect(connect.state.status).toBe(302)
+    expect(publish).toHaveBeenCalledExactlyOnceWith('answer')
+
+    const processConnect = response()
+    const publishProcess = vi.fn(() => 'process-operator' as PeerId)
+    auth.authorizeConnect(
+      request(`/connect?token=${encodeURIComponent(processToken)}&interactions=none`, authority),
+      processConnect.value,
+      false,
+      publishProcess,
+    )
+    expect(processConnect.state.status).toBe(302)
+    expect(publishProcess).toHaveBeenCalledExactlyOnceWith('none')
+
+    const refused = response()
+    const publishRefused = vi.fn(() => 'refused' as PeerId)
+    auth.authorizeConnect(
+      request('/connect?token=wrong&interactions=none', authority),
+      refused.value,
+      false,
+      publishRefused,
+    )
+    expect(refused.state.status).toBe(401)
+    expect(publishRefused).not.toHaveBeenCalled()
   })
 
   it('keeps HTTPS port 443 distinct from HTTP port 80 with one signing secret', async () => {

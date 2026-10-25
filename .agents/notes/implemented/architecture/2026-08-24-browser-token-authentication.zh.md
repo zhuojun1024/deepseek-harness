@@ -34,7 +34,7 @@ HMAC 密钥是 `ctx.credentials` 中位于 `client-connection/browser-session` �
 
 **保留按方法的特权列表，并把存储凭据限制在已配置目标。** 列表可能漏掉新 endpoint，也不能约束已经控制工具型 Session 的调用者。`discoverModels` 目标规则不构成安全边界，因为同一已认证主体可以更新 settings 并运行命令。统一认证覆盖授予进程控制权的操作。
 
-**持久化启动令牌或把它作为 API bearer 接受。** 持久启动令牌会成为第二份长期凭据；Authorization header 支持则会增加没有当前 consumer 的非浏览器客户端约定。进程令牌只完成一次浏览器 cookie 交换。
+**持久化启动令牌或把它作为 API bearer 接受。** 持久启动令牌会成为第二份长期凭据；Authorization header 支持则会增加没有当前 consumer 的非浏览器客户端约定。进程令牌只完成一次浏览器 cookie 交换。可选的配置永久令牌现在部分取代该替代方案；见[配置永久启动令牌](2026-10-25-configured-permanent-launch-token.zh.md)。
 
 **每次重启都轮换签名密钥。** 这会阻止既有浏览器在普通 DSH 重启后重连。只持久化签名密钥既保留该工作流，又由进程令牌轮换把启动 URL 限定在一个进程生命周期。
 

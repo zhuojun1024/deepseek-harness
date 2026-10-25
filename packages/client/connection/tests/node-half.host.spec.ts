@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events'
 import { createServer, request as httpRequest } from 'node:http'
 import { Readable } from 'node:stream'
 import { Context } from '@deepseek-ai/cordis'
+import Schema from '@deepseek-ai/schemastery'
 import { describe, expect, it, vi } from 'vitest'
 import type { AddressInfo } from 'node:net'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -11,6 +12,7 @@ import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import type { IndexInjection, WebServer, WebRoute, WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver'
 import {
   API_PATH,
+  Config,
   RpcId,
   apply,
   inject,
@@ -20,7 +22,7 @@ import {
   type PeerScope,
 } from '../src/index.ts'
 import { DEFAULT_MAX_REQUEST_BODY_BYTES } from '../src/http-bridge.ts'
-import { provideBrowserCredentials } from './browser-credentials.ts'
+import { RecordCredentials, provideBrowserCredentials } from './browser-credentials.ts'
 
 /** Structural webServer fake recording both route registries. */
 function fakeHttpServer(
@@ -99,6 +101,7 @@ async function mounted(
   config?: ConnectionConfig,
   protocol: WebServer['protocol'] = 'http:',
   credentials?: CredentialProvider,
+  store?: RecordCredentials,
 ): Promise<{
   ctx: Context
   routes: WebRoute[]
@@ -109,7 +112,8 @@ async function mounted(
   const ctx = new Context()
   const routes: WebRoute[] = []
   const upgrades: WebUpgradeRoute[] = []
-  if (credentials === undefined) provideBrowserCredentials(ctx)
+  if (store !== undefined) provideBrowserCredentials(ctx, store)
+  else if (credentials === undefined) provideBrowserCredentials(ctx)
   else ctx.provide('credentials', credentials)
   ctx.provide('webServer', fakeHttpServer(routes, upgrades, '127.0.0.1', protocol) as WebServer)
   const fiber = ctx.plugin({ inject: [...inject], apply }, config)
@@ -689,11 +693,14 @@ describe('operator-scoped connect', () => {
     host: Awaited<ReturnType<typeof mounted>>,
     query = '',
     headers: Record<string, string> = {},
+    token?: string,
   ): Promise<{ cookie: string; state: ReturnType<typeof fakeResponse>['state'] }> {
-    const token = new URL(host.connection.authenticatedUrl('http://localhost')).search
+    const tokenQuery = token === undefined
+      ? new URL(host.connection.authenticatedUrl('http://localhost')).search
+      : `?token=${encodeURIComponent(token)}`
     const response = fakeResponse()
     await host.routes.find(route => route.path === '/connect')!.handler(
-      fakeRequest({ host: 'localhost', ...headers }, `/connect${token}${query}`), response.response,
+      fakeRequest({ host: 'localhost', ...headers }, `/connect${tokenQuery}${query}`), response.response,
     )
     return { cookie: response.state.headers?.['set-cookie']?.split(';', 1)[0] ?? '', state: response.state }
   }
@@ -721,6 +728,38 @@ describe('operator-scoped connect', () => {
       const rootCookie = browserCookie(host.connection, 'localhost')
       expect(admitted(host.connection, rootCookie).interactions).toBe('answer')
     } finally { await host.dispose() }
+  })
+
+  it('keeps a configured permanent token usable across a process restart', async () => {
+    const store = new RecordCredentials()
+    const permanentToken = 'permanent-token-for-restart-1234567890'
+    const first = await mounted({ permanentToken }, 'http:', undefined, store)
+    const firstProcessToken = new URL(first.connection.authenticatedUrl('http://localhost'))
+      .searchParams.get('token')
+    if (firstProcessToken === null) throw new Error('first process token missing')
+    try {
+      const result = await connect(first, '&interactions=answer', {}, permanentToken)
+      expect(result.state.status).toBe(302)
+      expect(admitted(first.connection, result.cookie).interactions).toBe('answer')
+    } finally { await first.dispose() }
+
+    const second = await mounted({ permanentToken }, 'http:', undefined, store)
+    try {
+      const secondProcessToken = new URL(second.connection.authenticatedUrl('http://localhost'))
+        .searchParams.get('token')
+      expect(secondProcessToken).not.toBe(firstProcessToken)
+      const result = await connect(second, '&interactions=answer', {}, permanentToken)
+      expect(result.state.status).toBe(302)
+      expect(admitted(second.connection, result.cookie).interactions).toBe('answer')
+      const stale = await connect(second, '', {}, firstProcessToken)
+      expect(stale.state.status).toBe(401)
+    } finally { await second.dispose() }
+  })
+
+  it('requires a strong printable permanent token when configured', () => {
+    expect(() => Schema.resolve({ permanentToken: 'short' }, Config, {})).toThrow()
+    expect(() => Schema.resolve({ permanentToken: `${'x'.repeat(31)} ` }, Config, {})).toThrow()
+    expect(() => Schema.resolve({ permanentToken: 'x'.repeat(32) }, Config, {})).not.toThrow()
   })
 
   it('keeps all browser cookies on the shared operator and creates independent API operators', async () => {
