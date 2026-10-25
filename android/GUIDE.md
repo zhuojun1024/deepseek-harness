@@ -61,15 +61,15 @@ android/app/build/outputs/apk/debug/app-debug.apk
 android/app/build/outputs/apk/release/app-release.apk
 ```
 
-release 包已经用本机生成的密钥签名，包名为 `com.zhuojun1024.dsh`，可以直接安装：
+release 包已经用本机生成的密钥签名，包名为 `com.dsh.webview`，可以直接安装：
 
 ```powershell
 adb install -r android/app/build/outputs/apk/release/app-release.apk
 ```
 
-debug 包的 applicationId 带 `.debug` 后缀（`com.zhuojun1024.dsh.debug`），用于调试，可以和 release 包共存。
+debug 包的 applicationId 带 `.debug` 后缀（`com.dsh.webview.debug`），用于调试，可以和 release 包共存。
 
-0.2.0 可以直接覆盖安装 0.1.1（或 0.1.0），应用数据（已保存的 token 和 WebView Cookie）会保留；不要先卸载，否则需要重新登录。0.2.0 首次启动会多一个通知权限弹窗。
+新包名与旧版不同，不能覆盖升级；新 APK 会作为独立应用安装，旧版及其本地登录数据仍会保留。首次安装后需要重新输入服务器地址和 token，并会多一个通知权限弹窗；确认不再需要旧版后可以手动卸载旧应用。
 
 签名材料：
 
@@ -157,7 +157,7 @@ debug 包的 applicationId 带 `.debug` 后缀（`com.zhuojun1024.dsh.debug`）�
 
 ## 构建验证
 
-- release：`com.zhuojun1024.dsh` 0.2.0（versionCode 3），minSdk 30 / targetSdk 36，APK Signature Scheme v2，`zipalign -c 4` 通过；
+- release：`com.dsh.webview` 0.2.0（versionCode 3），minSdk 30 / targetSdk 36，APK Signature Scheme v2，`zipalign -c 4` 通过；
 - 权限：`INTERNET`、`POST_NOTIFICATIONS`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_DATA_SYNC`、`FOREGROUND_SERVICE_SPECIAL_USE`；
 - `lintRelease`：0 errors，6 warnings（备份属性、布局合并、按钮样式、OkHttp 有新版本等提示，不影响构建）；
 - 用本地 DSH web 实例验证了：
@@ -185,7 +185,7 @@ debug 包的 applicationId 带 `.debug` 后缀（`com.zhuojun1024.dsh.debug`）�
 
 ```
 android/
-  app/src/main/java/com/zhuojun1024/dsh/
+  app/src/main/java/com/dsh/webview/
     MainActivity.java          Activity、WebView、登录流程、insets、前台状态
     SessionMonitorService.java 前台服务、API operator、$events、完成通知
     AppVisibility.java         进程内前台/焦点标志

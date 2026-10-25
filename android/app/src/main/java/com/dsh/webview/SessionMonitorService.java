@@ -1,4 +1,4 @@
-package com.zhuojun1024.dsh;
+package com.dsh.webview;
 
 import android.annotation.SuppressLint;
 import android.app.Notification;
@@ -57,7 +57,7 @@ import okio.ByteString;
  */
 public final class SessionMonitorService extends Service {
     private static final String TAG = "DshMonitor";
-    static final String ACTION_STOP = "com.zhuojun1024.dsh.action.STOP_MONITOR";
+    static final String ACTION_STOP = "com.dsh.webview.action.STOP_MONITOR";
 
     private static final String MONITOR_CHANNEL = "dsh_monitor";
     private static final String COMPLETE_CHANNEL = "dsh_complete";
