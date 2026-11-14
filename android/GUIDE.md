@@ -18,7 +18,7 @@
   - 底部 padding = `max(systemBars.bottom, ime.bottom)`；
   - 状态栏、手势提示线、导航栏、IME 都不会遮挡页面或输入框；
   - 键盘弹出时自动把焦点输入框滚入可视区；
-- 返回手势：优先 WebView 历史，其次退出；33+ 使用 `OnBackInvokedCallback`；
+- 返回手势：优先 WebView 历史，其余场景弹退出确认；确认后停止后台监听、清除全部通知再退出（服务进入 stopped 状态，系统不会自动复活），33+ 使用 `OnBackInvokedCallback`；
 - HTTPS-only、禁止 cleartext、禁止 mixed content、TLS 错误一律取消、禁止 file/content 访问；
 - 文件选择、下载（带 Cookie）、外部链接交给系统浏览器；
 - 登录后启动前台服务，通过独立的 API operator 订阅 `$events` 的 `api-session/status`；一轮 Agent 从 running 变为 idle（会话结束）且 App 不在前台时发通知；
@@ -124,7 +124,7 @@ debug 包的 applicationId 带 `.debug` 后缀（`com.dsh.webview.debug`），�
 - 前台服务常驻通知是系统要求，不代表“前台有会话完成时也通知”；完成通知只在 App 无焦点时发；
 - 0.2.1 起，完成通知和登录失效通知使用高优先级渠道，使用系统默认提示音并启用震动；常驻的“后台监听中”通知仍是低优先级静默通知，避免监听启动时反复打扰；
 - 如果完成通知仍然无声，检查系统是否处于静音/免打扰，以及 DSH 通知渠道的“声音/震动”开关；App 不会绕过系统的免打扰设置；
-- 前台服务通知的“停止”会停止监听；下次打开 App 会重新启动。想临时不提醒可以点它，或关闭通知权限。
+- 前台服务通知的“停止”会停止监听；下次打开 App 会重新启动。想临时不提醒可以点它，或关闭通知权限。通过返回确认退出 App 也会停止监听并清空通知，与点“停止”等效。
 
 ### 超级岛
 

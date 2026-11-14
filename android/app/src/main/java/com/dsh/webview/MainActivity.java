@@ -3,7 +3,9 @@ package com.dsh.webview;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.DownloadManager;
+import android.app.NotificationManager;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.Context;
@@ -601,7 +603,7 @@ public final class MainActivity extends Activity {
 
     private void handleBack() {
         if (loadingOverlay.getVisibility() == View.VISIBLE) {
-            finish();
+            confirmExit();
             return;
         }
         if (webContainer.getVisibility() == View.VISIBLE) {
@@ -614,6 +616,33 @@ public final class MainActivity extends Activity {
                 return;
             }
         }
+        confirmExit();
+    }
+
+    /**
+     * Asks the user to confirm exit. Confirming stops the session monitor and clears every posted
+     * notification before the Activity finishes; the monitor's stopped state keeps the system
+     * from resurrecting it, so the app consumes no power until the user opens it again.
+     */
+    private void confirmExit() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.exit_confirm_title)
+                .setMessage(R.string.exit_confirm_message)
+                .setPositiveButton(R.string.exit_confirm_yes, (dialog, which) -> exitAll())
+                .setNegativeButton(R.string.exit_confirm_no, null)
+                .show();
+    }
+
+    /** Stops the monitor and clears all notifications before finishing. */
+    private void exitAll() {
+        try {
+            startService(new Intent(this, SessionMonitorService.class)
+                    .setAction(SessionMonitorService.ACTION_STOP));
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Unable to stop the session monitor", e);
+        }
+        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (manager != null) manager.cancelAll();
         finish();
     }
 

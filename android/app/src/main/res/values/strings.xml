@@ -37,4 +37,8 @@
     <string name="notification_login_text">点击粘贴新的 token，恢复后台完成提醒</string>
     <string name="notification_channel_login">登录提醒</string>
     <string name="notification_channel_login_desc">后台监听 token 失效时提醒重新登录</string>
+    <string name="exit_confirm_title">退出 DSH？</string>
+    <string name="exit_confirm_message">退出将停止后台会话监听并清除全部通知，之后不再耗电；下次打开 App 会重新登录并恢复监听。</string>
+    <string name="exit_confirm_yes">退出</string>
+    <string name="exit_confirm_no">取消</string>
 </resources>
