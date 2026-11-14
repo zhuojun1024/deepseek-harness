@@ -119,6 +119,7 @@ debug 包的 applicationId 带 `.debug` 后缀（`com.dsh.webview.debug`），�
 
 - Android 13+ 需要通知权限；首次启动会请求，拒绝后不显示通知（前台服务仍可能运行，但通知栏里看不到完成提醒）；
 - 前台服务需要 `FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_DATA_SYNC`、`FOREGROUND_SERVICE_SPECIAL_USE` 权限；Manifest 中声明 `dataSync|specialUse`，Android 14+ 运行时使用 `specialUse`；
+- 监听服务判断默认网络类型（Wi-Fi/蜂窝）需要 `ACCESS_NETWORK_STATE`，缺少时服务在 `onCreate` 注册网络回调即抛 SecurityException 崩溃；
 - token 失效时会发一条独立的“登录已失效”通知（高优先级渠道“登录提醒”），点击后会直接打开登录页；如果通知权限被拒绝，则只能手动清数据/重新登录；
 - 小米澎湃 OS 需要允许 DSH 的通知，并把省电策略设为“无限制”/允许自启动（不同版本路径不同）；否则系统可能在锁屏/后台一段时间后杀掉服务；
 - 前台服务常驻通知是系统要求，不代表“前台有会话完成时也通知”；完成通知只在 App 无焦点时发；
