@@ -21,12 +21,14 @@
 - 返回手势：优先 WebView 历史，其余场景弹退出确认；确认后停止后台监听、清除全部通知再退出（服务进入 stopped 状态，系统不会自动复活），33+ 使用 `OnBackInvokedCallback`；
 - HTTPS-only、禁止 cleartext、禁止 mixed content、TLS 错误一律取消、禁止 file/content 访问；
 - 文件选择、下载（带 Cookie）、外部链接交给系统浏览器；
+- 下载文件名优先取下载地址的 `path` 查询参数，其次响应头 `Content-Disposition`，最后按 URL 推导：WebView 的下载监听不保证交出响应头里的文件名，只按 URL 和 MIME 推导会把 `application/octet-stream` 存成 `.bin`；
 - 登录后启动前台服务，通过独立的 API operator 订阅 `$events` 的 `api-session/status`；一轮 Agent 从 running 变为 idle（会话结束）且 App 不在前台时发通知；
 - 完成通知优先显示会话标题；标题不可用时回退为“DSH 会话完成”；
 - 点击完成通知直接打开对应会话；点击常驻通知回到 App；前台服务常驻通知带“停止”；Android 13+ 启动时请求通知权限。
 
 ## 变更
 
+- 0.2.3：修复下载后文件后缀变成 `.bin` 的问题：WebView 的下载监听给出的 `Content-Disposition` 可能不含文件名，Android 只能按 URL 末段和 MIME 推导；现在优先用下载地址里的 `path` 参数命名，并解析 `filename*` 的中文名，同时去掉路径分隔符等非法字符；
 - 0.2.2：完成通知显示会话标题，点击通知直接打开对应会话；标题从 `session/list` 的 `projections.values.title` 读取，运行开始和完成时按需刷新，缺失时回退为“DSH 会话完成”；
 - 0.2.1：会话完成和登录失效通知改用新的高优先级通知渠道，显式使用系统默认提示音并启用震动；旧的静默通知渠道会被移除；
 - 0.2.0：新增后台会话完成通知（独立 API operator + `$events`，仅 App 不在前台时提醒）；新增通知权限、前台服务、通知渠道和通知小图标；`session/list` 预读当前 running 会话，避免监听启动时已在跑的任务漏提醒；token 失效时发“登录已失效”通知，点击直达登录页；

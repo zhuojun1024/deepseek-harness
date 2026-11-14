@@ -63,10 +63,12 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -75,6 +77,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.net.ssl.SSLException;
 
 /**
@@ -1106,6 +1110,98 @@ public final class MainActivity extends Activity {
         }
     }
 
+    /** Longest saved name; file systems cap a name by bytes, not characters. */
+    private static final int MAX_DOWNLOAD_FILE_NAME_LENGTH = 96;
+    private static final Pattern DISPOSITION_FILENAME_STAR =
+            Pattern.compile("filename\\*\\s*=\\s*([^;]+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DISPOSITION_FILENAME =
+            Pattern.compile("filename\\s*=\\s*\"?([^\";]+)\"?", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Names a saved download. The served route carries the workspace path as a
+     * query parameter, so that name outranks the answer headers: a WebView
+     * download listener may report neither a disposition filename nor a URL
+     * basename, and Android then falls back to the response MIME extension.
+     */
+    private static String downloadFileName(String url, String contentDisposition, String mimetype) {
+        String fromQuery = queryPathFileName(url);
+        if (fromQuery != null) {
+            return fromQuery;
+        }
+        String fromDisposition = dispositionFileName(contentDisposition);
+        if (fromDisposition != null) {
+            return fromDisposition;
+        }
+        return URLUtil.guessFileName(url, contentDisposition, mimetype);
+    }
+
+    private static String queryPathFileName(String url) {
+        String path;
+        try {
+            path = Uri.parse(url).getQueryParameter("path");
+        } catch (RuntimeException error) {
+            return null;
+        }
+        if (path == null || path.isEmpty()) {
+            return null;
+        }
+        int separator = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        return sanitizeFileName(path.substring(separator + 1));
+    }
+
+    private static String dispositionFileName(String contentDisposition) {
+        if (contentDisposition == null || contentDisposition.isEmpty()) {
+            return null;
+        }
+        Matcher extended = DISPOSITION_FILENAME_STAR.matcher(contentDisposition);
+        if (extended.find()) {
+            String value = extended.group(1).trim();
+            int language = value.indexOf("''");
+            if (language >= 0) {
+                value = value.substring(language + 2);
+            }
+            String name = sanitizeFileName(decodeUrlComponent(value));
+            if (name != null) {
+                return name;
+            }
+        }
+        Matcher plain = DISPOSITION_FILENAME.matcher(contentDisposition);
+        return plain.find() ? sanitizeFileName(plain.group(1).trim()) : null;
+    }
+
+    private static String decodeUrlComponent(String value) {
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8.name());
+        } catch (UnsupportedEncodingException | IllegalArgumentException error) {
+            return value;
+        }
+    }
+
+    private static String sanitizeFileName(String name) {
+        StringBuilder cleaned = new StringBuilder(name.length());
+        for (int index = 0; index < name.length(); index++) {
+            char character = name.charAt(index);
+            boolean unsafe = character < 0x20 || character == 0x7f
+                    || character == '/' || character == '\\' || character == ':'
+                    || character == '*' || character == '?' || character == '"'
+                    || character == '<' || character == '>' || character == '|';
+            cleaned.append(unsafe ? '_' : character);
+        }
+        String result = cleaned.toString().trim();
+        if (result.isEmpty() || ".".equals(result) || "..".equals(result)) {
+            return null;
+        }
+        if (result.length() <= MAX_DOWNLOAD_FILE_NAME_LENGTH) {
+            return result;
+        }
+        int dot = result.lastIndexOf('.');
+        if (dot > 0 && result.length() - dot <= 16) {
+            return result.substring(0, MAX_DOWNLOAD_FILE_NAME_LENGTH - (result.length() - dot))
+                    + result.substring(dot);
+        }
+        return result.substring(0, MAX_DOWNLOAD_FILE_NAME_LENGTH);
+    }
+
     private final class DshDownloadListener implements DownloadListener {
         @Override
         public void onDownloadStart(
@@ -1131,7 +1227,7 @@ public final class MainActivity extends Activity {
                 }
                 request.setNotificationVisibility(
                         DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                String fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);
+                String fileName = downloadFileName(url, contentDisposition, mimetype);
                 try {
                     request.setDestinationInExternalPublicDir(
                             Environment.DIRECTORY_DOWNLOADS, fileName);
