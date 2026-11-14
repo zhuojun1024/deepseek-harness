@@ -113,7 +113,7 @@ debug 包的 applicationId 带 `.debug` 后缀（`com.dsh.webview.debug`），�
 5. 通知标题优先使用 `session/list` 返回的 `items[].projections.values.title`；缓存缺失时在通知前用短超时补查，仍取不到则显示“DSH 会话完成”，不显示 sessionId；
 6. 通知携带 sessionId，点击后 `MainActivity` 把 DSH Web 持久化的 `dsh.sessions.current` 选择写成该会话；当前已经选中该会话时不刷新，否则刷新页面恢复对应会话窗口；
 7. App 通过 `onWindowFocusChanged`/`onPause`/`onResume` 维护前台标志；回到前台后完成的轮次不会补发通知；
-8. 服务断线按 2s→60s 退避重连；每次重连重新换取 operator Cookie（peer 随 WebSocket 关闭而释放）；token 失效（401/403）时停止服务，并发一条“登录已失效”通知；点击通知打开登录页（地址保留、token 清空），重新登录后会再次启动。
+8. 服务断线按退避重连：Wi-Fi 2s→60s，蜂窝/无网络 2s→5min；WebSocket 保活 ping 为 Wi-Fi 60s、蜂窝 120s。默认网络从蜂窝切到 Wi-Fi 且流未连接时立即重连，Wi-Fi 切到蜂窝时关闭当前连接并按蜂窝上限重连；每次重连重新换取 operator Cookie（peer 随 WebSocket 关闭而释放）；token 失效（401/403）时停止服务，并发一条“登录已失效”通知；点击通知打开登录页（地址保留、token 清空），重新登录后会再次启动。
 
 ### 权限与系统限制
 

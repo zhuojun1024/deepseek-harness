@@ -13,6 +13,10 @@ import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Icon;
 import android.media.AudioAttributes;
 import android.media.RingtoneManager;
+import android.net.ConnectivityManager;
+import android.net.ConnectivityManager.NetworkCallback;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
@@ -62,6 +66,11 @@ import okio.ByteString;
  * answering because DSH refuses passive {@code $events} subscriptions, but this service only reads
  * status frames: approval waterfalls stay with the browser UI. A session becoming idle after this
  * service observed it running posts one notification, and only when no Activity window has focus.
+ *
+ * <p>The stream tracks the default network so it does not wake the radio on cellular: Wi-Fi keeps
+ * the stream open with a 60-second ping and a 60-second reconnect cap; the cellular and no-network
+ * postures lengthen the ping to 120 seconds and the cap to five minutes, and a cellular-to-Wi-Fi
+ * switch with no open stream reconnects at once.
  */
 public final class SessionMonitorService extends Service {
     private static final String TAG = "DshMonitor";
@@ -76,6 +85,14 @@ public final class SessionMonitorService extends Service {
     private static final int LOGIN_NOTIFICATION_ID = 0x1002;
     private static final long RECONNECT_MIN_MS = 2_000;
     private static final long RECONNECT_MAX_MS = 60_000;
+    /** Cellular and no-network reconnect cap: long enough to idle the radio, short enough to
+     *  still notify when a session finishes while the user is away. */
+    private static final long RECONNECT_MAX_CELLULAR_MS = 5 * RECONNECT_MAX_MS;
+    private static final long PING_WIFI_SECONDS = 60;
+    private static final long PING_CELLULAR_SECONDS = 120;
+    private static final int NET_WIFI = 1;
+    private static final int NET_CELLULAR = 2;
+    private static final int NET_NONE = 0;
     private static final String OPEN_EVENTS =
             "{\"type\":\"open\",\"streamId\":\"events\",\"endpoint\":\"$events\",\"payload\":{\"args\":{}}}";
 
@@ -92,7 +109,11 @@ public final class SessionMonitorService extends Service {
     private final AtomicBoolean connecting = new AtomicBoolean();
     private final Runnable reconnect = this::connect;
 
-    private OkHttpClient http;
+    private ConnectivityManager connectivity;
+    private OkHttpClient wifiHttp;
+    private OkHttpClient cellularHttp;
+    private NetworkCallback networkCallback;
+    private volatile int netKind = NET_WIFI;
     private volatile WebSocket socket;
     private volatile String apiCookie;
     private volatile boolean stopped;
@@ -111,11 +132,22 @@ public final class SessionMonitorService extends Service {
     public void onCreate() {
         super.onCreate();
         createChannels();
-        http = new OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(0, TimeUnit.MILLISECONDS)
-                .pingInterval(20, TimeUnit.SECONDS)
-                .build();
+        wifiHttp = newStreamClient(PING_WIFI_SECONDS);
+        cellularHttp = newStreamClient(PING_CELLULAR_SECONDS);
+        connectivity = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        netKind = networkKind(ConnectivityManager.getProcessDefaultNetwork());
+        networkCallback = new NetworkCallback() {
+            @Override
+            public void onAvailable(Network network) {
+                onNetworkKind(networkKind(network));
+            }
+
+            @Override
+            public void onLost(Network network) {
+                onNetworkKind(NET_NONE);
+            }
+        };
+        connectivity.registerDefaultNetworkCallback(networkCallback);
     }
 
     @Override
@@ -147,10 +179,11 @@ public final class SessionMonitorService extends Service {
         WebSocket current = socket;
         socket = null;
         if (current != null) current.close(1000, "service stopped");
-        if (http != null) {
-            http.dispatcher().executorService().shutdown();
-            http.connectionPool().evictAll();
+        if (networkCallback != null && connectivity != null) {
+            connectivity.unregisterNetworkCallback(networkCallback);
         }
+        shutdownClient(wifiHttp);
+        shutdownClient(cellularHttp);
         super.onDestroy();
     }
 
@@ -184,7 +217,7 @@ public final class SessionMonitorService extends Service {
                         .header("Origin", originOf(host))
                         .build();
                 Listener listener = new Listener(gen, cookie);
-                WebSocket ws = http.newWebSocket(request, listener);
+                WebSocket ws = clientFor(netKind).newWebSocket(request, listener);
                 synchronized (this) {
                     if (stopped || gen != generation.get()) {
                         ws.close(1000, "superseded");
@@ -219,9 +252,62 @@ public final class SessionMonitorService extends Service {
     private void scheduleReconnect(int gen) {
         if (stopped || gen != generation.get()) return;
         main.removeCallbacks(reconnect);
-        long delay = reconnectDelay;
-        reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_MS);
+        long max = netKind == NET_WIFI ? RECONNECT_MAX_MS : RECONNECT_MAX_CELLULAR_MS;
+        long delay = Math.min(reconnectDelay, max);
+        reconnectDelay = Math.min(delay * 2, max);
         main.postDelayed(reconnect, delay);
+    }
+
+    /** Builds the WebSocket client for a stream posture. */
+    private static OkHttpClient newStreamClient(long pingSeconds) {
+        return new OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .pingInterval(pingSeconds, TimeUnit.SECONDS)
+                .build();
+    }
+
+    private OkHttpClient clientFor(int kind) {
+        return kind == NET_WIFI ? wifiHttp : cellularHttp;
+    }
+
+    private static void shutdownClient(OkHttpClient client) {
+        if (client == null) return;
+        client.dispatcher().executorService().shutdown();
+        client.connectionPool().evictAll();
+    }
+
+    /** Classifies a network by its transport for stream throttling. */
+    private int networkKind(Network network) {
+        NetworkCapabilities caps = network == null ? null : connectivity.getNetworkCapabilities(network);
+        if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return NET_WIFI;
+        if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) return NET_CELLULAR;
+        return NET_NONE;
+    }
+
+    /**
+     * Reacts to a default-network change on the main looper. Wi-Fi restores the stream at once
+     * when it is not open; cellular or no-network drops the open stream so the pending reconnect
+     * applies the longer cap.
+     */
+    private void onNetworkKind(int kind) {
+        if (stopped || kind == netKind) return;
+        Log.i(TAG, "Default network is now " + netName(kind));
+        netKind = kind;
+        if (kind == NET_WIFI) {
+            if (socket != null) return;
+            reconnectDelay = RECONNECT_MIN_MS;
+            connect();
+            return;
+        }
+        WebSocket current = socket;
+        if (current != null) current.close(1000, "network changed");
+    }
+
+    private static String netName(int kind) {
+        if (kind == NET_WIFI) return "Wi-Fi";
+        if (kind == NET_CELLULAR) return "cellular";
+        return "none";
     }
 
     /**
