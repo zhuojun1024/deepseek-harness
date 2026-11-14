@@ -21,6 +21,7 @@
 
 import { posix, win32 } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
+import { brandString } from '@deepseek-ai/dsh-brand'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-fs'
 import type { FsDirEntry, FsInfo, FsPathInfo, FsTarget } from '@deepseek-ai/dsh-fs'
@@ -30,6 +31,7 @@ import type {} from '@deepseek-ai/dsh-session-persistence'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { Remote, RemoteError, TypertRemoteService, type TypertLookup } from '@deepseek-ai/dsh-typert-protocol'
 import { WorkspaceChangeFeed } from './changes.ts'
+import { WORKSPACE_FILE_DOWNLOAD_PATH } from './routes.ts'
 import type {
   WorkspaceByteRange,
   WorkspaceByteReadOptions,
@@ -43,6 +45,7 @@ import type {
 } from './types.ts'
 
 export type * from './types.ts'
+export { WORKSPACE_FILE_DOWNLOAD_PATH } from './routes.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -63,6 +66,22 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertLookupMap {
     /** Resolve a Session id to its workspace root without loading its event body or activating an Agent. */
     workspaceFileScope: TypertLookup<WorkspaceFileScope, SessionId>
+  }
+}
+
+/**
+ * The Connection carrier surface the download route registers on. The browser
+ * package owns the full declaration; this project keeps its Host face local, so
+ * the route needs no browser-side type import.
+ */
+interface WorkspaceFilesConnection {
+  readonly fetch: {
+    register(route: {
+      readonly path: string
+      readonly methods: readonly ('GET' | 'HEAD')[]
+      readonly requestBody: 'buffered'
+      readonly fetch: (request: Request) => Promise<Response>
+    }): () => Promise<void>
   }
 }
 
@@ -193,7 +212,7 @@ export class WorkspaceFiles extends TypertRemoteService {
   private readonly feed: WorkspaceChangeFeed
 
   /**
-   * @param ctx - Host context carrying the filesystem and the sandbox policy.
+   * @param ctx - Host context carrying the filesystem, the sandbox policy, and the connection carrier.
    * @param config - deployment caps on one page or one listing.
    */
   constructor(ctx: Context, private readonly config: Config) {
@@ -206,20 +225,84 @@ export class WorkspaceFiles extends TypertRemoteService {
         resource: 'session',
         hostTypeSymbol: '@deepseek-ai/dsh-api-workspace-files#WorkspaceFileScope',
         wireTypeSymbol: '@deepseek-ai/dsh-session/types#SessionId',
-        resolve: async (sessionId) => {
-          const live = scope.sessions.get(sessionId)?.header
-          const stored = live === undefined
-            ? await scope.get('sessionPersistence')?.stat(sessionId)
-            : undefined
-          const header = live ?? stored?.header
-          if (header === undefined) return undefined
-          return {
-            sessionId,
-            workspaceRoot: header.cwd ?? scope.sandboxPolicy.workspaceRoot,
-          }
-        },
+        resolve: async sessionId => this.sessionScope(sessionId),
       })
     })
+    ctx.inject(['connection'], (scope) => {
+      connectionOf(scope).fetch.register({
+        path: WORKSPACE_FILE_DOWNLOAD_PATH,
+        methods: ['GET', 'HEAD'],
+        requestBody: 'buffered',
+        fetch: request => this.serveDownload(request),
+      })
+    })
+  }
+
+  /**
+   * Derive one Session's workspace scope from its live header, or from the
+   * persistence service's header-only stat when the Session is cold. Neither
+   * path activates an Agent or reads an event body.
+   * @param sessionId - Session identity received on the wire.
+   * @returns the scope, or undefined when neither a live nor a stored header names the Session.
+   */
+  private async sessionScope(sessionId: SessionId): Promise<WorkspaceFileScope | undefined> {
+    const live = this.ctx.sessions.get(sessionId)?.header
+    const stored = live === undefined
+      ? await this.ctx.get('sessionPersistence')?.stat(sessionId)
+      : undefined
+    const header = live ?? stored?.header
+    if (header === undefined) return undefined
+    return {
+      sessionId,
+      workspaceRoot: header.cwd ?? this.ctx.sandboxPolicy.workspaceRoot,
+    }
+  }
+
+  /**
+   * Answer the authenticated download route: resolve the Session's workspace
+   * scope, pass the regular-file gates, and serve the file as an attachment.
+   * The connection carrier authenticates the request and admits owner Peers
+   * only before this handler runs.
+   * @param request - the authenticated GET or HEAD; its signal cancels the read.
+   * @returns the attachment response, or a sanitized status for invalid, missing, or oversized reads.
+   */
+  private async serveDownload(request: Request): Promise<Response> {
+    const params = new URL(request.url).searchParams
+    const sessionIdValue = params.get('sessionId')
+    const path = params.get('path')
+    if (sessionIdValue === null || sessionIdValue.length === 0
+      || path === null || path.length === 0 || path.includes('\0')) {
+      return downloadFailure(request, 400, 'missing or invalid sessionId or path query parameter')
+    }
+    const scope = await this.sessionScope(brandString<SessionId>(sessionIdValue))
+    if (scope === undefined) return downloadFailure(request, 404, 'session not found')
+    let located: { target: FsTarget; info: FsInfo }
+    try {
+      located = await this.locateFile(scope, path, request.signal)
+    } catch (error: unknown) {
+      return fsFailureResponse(request, error)
+    }
+    const { target, info } = located
+    if (info.size !== undefined && info.size > this.config.maxFileBytes) {
+      return downloadFailure(request, 413, `"${path}" exceeds the ${this.config.maxFileBytes} byte download cap`)
+    }
+    const headers: Record<string, string> = {
+      'cache-control': 'private, no-store',
+      'content-type': 'application/octet-stream',
+      'content-disposition': attachmentDisposition(basenameOf(path)),
+      'x-content-type-options': 'nosniff',
+    }
+    if (request.method === 'HEAD') {
+      if (info.size !== undefined) headers['content-length'] = String(info.size)
+      return new Response(null, { status: 200, headers })
+    }
+    try {
+      const bytes = await this.ctx.fs.readBytes(target, request.signal, this.config.maxFileBytes)
+      headers['content-length'] = String(bytes.byteLength)
+      return new Response(bytes.slice(), { status: 200, headers })
+    } catch (error: unknown) {
+      return fsFailureResponse(request, error)
+    }
   }
 
   /**
@@ -461,6 +544,79 @@ export class WorkspaceFiles extends TypertRemoteService {
  */
 function isNotTextRefusal(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'FS_NOT_TEXT'
+}
+
+/** Read the composition's Connection carrier (typed locally: its package declares the browser face). */
+function connectionOf(ctx: Context): WorkspaceFilesConnection {
+  return Reflect.get(ctx, 'connection') as WorkspaceFilesConnection
+}
+
+/** Filesystem and Remote failure codes and their download-route statuses. */
+const DOWNLOAD_FAILURE_STATUSES: Readonly<Record<string, number>> = {
+  FS_NOT_FOUND: 404,
+  FS_NOT_REGULAR_FILE: 403,
+  FS_PERMISSION_DENIED: 403,
+  FS_SANDBOX_DENIED: 403,
+  FS_TOO_LARGE: 413,
+  FS_ABORTED: 499,
+  'workspace-file/not-found': 404,
+  'workspace-file/not-regular-file': 403,
+  'workspace-file/too-large': 413,
+}
+
+/**
+ * Map one refusal from the gates or the composed filesystem to the download
+ * route's status. A code the table does not name, or any other rejection,
+ * rethrows, where the webserver answers 400 and logs.
+ * @param request - the request whose method decides whether a body is written.
+ * @param error - the rejection from a gate or the composed filesystem.
+ * @returns the refusal for a recognized failure code.
+ */
+function fsFailureResponse(request: Request, error: unknown): Response {
+  request.signal.throwIfAborted()
+  if (typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string') {
+    const status = DOWNLOAD_FAILURE_STATUSES[error.code]
+    if (status !== undefined) return downloadFailure(request, status, error.code)
+  }
+  throw error
+}
+
+/**
+ * One refusal response for the download route; a HEAD request carries the
+ * status and headers without a body. The reason is an opaque status text,
+ * never an error message that may carry absolute host paths into a client.
+ * @param request - the request whose method decides whether a body is written.
+ * @param status - the HTTP refusal status.
+ * @param text - the opaque refusal reason.
+ * @returns the refusal.
+ */
+function downloadFailure(request: Request, status: number, text: string): Response {
+  return new Response(request.method === 'HEAD' ? null : text, {
+    status,
+    headers: { 'cache-control': 'private, no-store', 'content-type': 'text/plain; charset=utf-8' },
+  })
+}
+
+/**
+ * The final non-empty path segment of a workspace path, either separator.
+ * @param path - the requested path.
+ * @returns the segment that names the downloaded file.
+ */
+function basenameOf(path: string): string {
+  const trimmed = path.replace(/[/\\]+$/, '')
+  const cut = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\')) + 1
+  return trimmed.slice(cut)
+}
+
+/**
+ * One Content-Disposition attachment header naming the download.
+ * @param name - the file's final path segment.
+ * @returns `attachment; filename="…"` for printable ASCII names; any other name
+ *   adds an RFC 5987 `filename*` form over an ASCII fallback.
+ */
+function attachmentDisposition(name: string): string {
+  if (/^[\x20-\x7e]*$/u.test(name) && !/[\\"]/.test(name)) return `attachment; filename="${name}"`
+  return `attachment; filename="${name.replace(/[^\x20-\x7e]/gu, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`
 }
 
 export default WorkspaceFiles

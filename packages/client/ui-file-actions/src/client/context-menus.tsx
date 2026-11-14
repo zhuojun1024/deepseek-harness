@@ -5,7 +5,8 @@ import type {} from '@deepseek-ai/dsh-api-workspace-files/remote'
 import type {} from '@deepseek-ai/dsh-api-session-controller/remote'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { FileActions, FileActionSource } from '../types.ts'
-import { fileMediaUrl } from '@deepseek-ai/dsh-util-workspace-path'
+import { fileMediaUrl, workspaceFileDownloadUrl } from '@deepseek-ai/dsh-util-workspace-path'
+import { startAttachmentDownload } from './files.ts'
 import mime from 'mime'
 import type { FileActionKey } from './locales.ts'
 
@@ -72,7 +73,16 @@ export function registerFileMenus(ctx: Context, actions: FileActions, t: (key: F
         ] : [],
         ...mediaType.startsWith('image/') || !actions.canSaveAs ? [
           { id: 'download', icon: { key: 'file-actions.download' }, failureLabel: t('menu.saveFailed'),
-            label: t('menu.download'), disabled: !available, run: () => save(source, 'download') },
+            label: t('menu.download'), disabled: !available, run: async () => {
+              const url = workspaceFileDownloadUrl(document.baseURI, sessionId, path)
+              if (url === undefined) throw new Error('Download route unavailable')
+              lifetime.signal.throwIfAborted()
+              const probe = await fetch(url, { method: 'HEAD', signal: lifetime.signal })
+              lifetime.signal.throwIfAborted()
+              if (!probe.ok) throw new Error(`Download failed: HTTP ${probe.status}`)
+              startAttachmentDownload(url, source.name ?? path)
+              ctx.contextMenus.notify(t('menu.downloadStarted'), true)
+            } },
         ] : [],
         ...actions.canSaveAs ? [
           { id: 'saveAs', icon: { key: 'file-actions.save' }, failureLabel: t('menu.saveFailed'), label: t('menu.saveAs'),

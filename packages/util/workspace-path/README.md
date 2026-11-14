@@ -28,6 +28,8 @@ A resource address is `dsh-resource://<type>/…`, and the type — the URI host
 
 `fileMediaUrl(base, path)` builds an authenticated file-route URL from an already-decoded absolute path. It accepts HTTP(S) application bases and the Desktop `dsh-app://app/` origin, preserves literal percent signs and deployment prefixes, and rejects other application bases, relative paths, network-path prefixes, and control characters. Markdown owners decode authored URLs before calling it; native file-card paths are passed unchanged.
 
+`workspaceFileDownloadUrl(base, sessionId, path)` builds the URL of the Session workspace file's authenticated download route, whose answer carries `Content-Disposition: attachment`. It accepts workspace-relative and absolute paths, the same application bases as `fileMediaUrl`, and the same path rejections; a missing Session id returns undefined.
+
 -----
 
 ## Known Limitations and Deferred Work

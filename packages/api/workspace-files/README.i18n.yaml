@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/workspace-files/README.md
 /:
-  en: f83c75aa73ae21dd
-  zh: e8873aafd23a8038
+  en: 926539e82d7de7ec
+  zh: 47123b5363313ca7
 /deepseek-ai-dsh-api-workspace-files:
   en: d2885c72d12d9924
   zh: e111f03d02383229
@@ -26,6 +26,9 @@
 /deepseek-ai-dsh-api-workspace-files/use-this-package/binary-reads:
   en: 93ca9e832fbfd632
   zh: 69412adba259c6f8
+/deepseek-ai-dsh-api-workspace-files/use-this-package/attachment-download:
+  en: 9917788dc1bf8f36
+  zh: 7279015f1d1449e4
 /deepseek-ai-dsh-api-workspace-files/use-this-package/file-read-and-directory-checks:
   en: aa85c7754557a22f
   zh: c576d06749fbe0a5
@@ -48,8 +51,8 @@
   en: c3a8852c33dcc0e9
   zh: d24fd47da7faaa29
 /deepseek-ai-dsh-api-workspace-files/understand-the-implementation/source-map:
-  en: 596a75f43bfafda3
-  zh: 3cb267a0946cd75e
+  en: a4b92277bd7a84db
+  zh: 67bea170c0e64c1a
 /deepseek-ai-dsh-api-workspace-files/further-exploration:
   en: 71f00fb919d12181
   zh: 1e3819cd90dfca31

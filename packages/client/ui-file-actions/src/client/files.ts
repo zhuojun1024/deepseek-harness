@@ -12,6 +12,20 @@ export function exportName(name: string | undefined, mediaType: string): string 
   return resolveDragFileName({ name: name ?? 'image', mediaType })
 }
 
+/**
+ * Hand a Host attachment route to the browser download manager. The route's
+ * `Content-Disposition: attachment` answer saves the file without navigating,
+ * and a shell download listener takes the same http(s) URL.
+ * @param url - document-relative or absolute Host download route.
+ * @param filename - browser download filename fallback.
+ */
+export function startAttachmentDownload(url: string, filename: string): void {
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+}
+
 /** File action owner; browser download requests never imply a saved path. */
 export class BrowserFileActions implements FileActions {
   private downloadUrl: string | undefined

@@ -1,5 +1,5 @@
 ---
-description: "面向 Web GUI 的工作区文件服务：有界文件读取、按目标监听文件系统变化，以及 Session 工作区根内的目录列举。"
+description: "面向 Web GUI 的工作区文件服务：有界文件读取、按目标监听文件系统变化、Session 工作区根内的目录列举，以及仅 owner 可达的附件下载路由。"
 kind: "package-reference"
 ---
 
@@ -48,6 +48,10 @@ kind: "package-reference"
 `read` 按行分页，绝不按字节；字节窗口走 `readBytes(path, { range: { offset?, length? } })`。`options.range.offset` 是 0 起算的首字节，缺省为 0；`options.range.length` 是窗口最多的字节数，缺省为 `maxBytes` 且不得超过它——更长的窗口以 `too-large` 失败而不是被截短，不是整数或越界的 offset / length 则是 `gateway/bad-request`。窗口以 `Uint8Array` 类型的 `data` 返回，到文件末尾时短于 `length`，位于或越过末尾时为空；窗口含文件最后一个字节时 `eof` 为 true。不做任何解码，也不按二进制拒绝，因此图片或含 NUL 的文件在 `read` 以 `not-text` 失败之处仍可读出。与页一样附带同一 `version` 与 `bytes`。
 
 必填的选项对象传 `{}` 时，在 `maxFileBytes` 上限内读取完整文件；传 `{ range: {} }` 时，在 `maxBytes` 上限内读取默认字节窗口。超大完整文件失败，不截断。`baseFile` 与 `range` 可以组合，窗口始终不受完整文件上限约束。二进制 Remote 使用 Connection 的 multipart 响应传递 JSON 元数据与原始字节；生成的 Client 直接返回 `Uint8Array<ArrayBuffer>`，无需 base64 解码。调用方取消会传到文件系统。端点返回数据，不提供可导航的文档。
+
+### 附件下载
+
+服务在 Connection 载体上注册一个经鉴权的 `GET`/`HEAD` 路由，路径为 `/api/workspace-file/download`。owner 浏览器会话以 `sessionId` 与 `path` 请求；响应携带文件字节与 `Content-Disposition: attachment`，浏览器——或接收同一 http(s) URL 的壳下载监听器——即可保存文件而不发生导航。请求沿用 `readBytes` 的 Session 身份与路径规则，拒绝方式也一致：查询缺失或非法为 400，未知 Session 或文件缺失为 404，非常规文件或权限拒绝为 403，超过 `maxFileBytes` 的文件为 413。该路由是精确路由，绕过 Gateway，仅 owner Peer 可达；非 owner API 凭证收到 403。响应为 `application/octet-stream`、不缓存，文件名取自路径末段，非 ASCII 名以 RFC 5987 `filename*` 形式携带，并附 ASCII 回退名。
 
 ### 文件读取与目录检查
 
@@ -100,7 +104,8 @@ kind: "package-reference"
 
 | 文件 | 职责 |
 |---|---|
-| [`src/index.ts`](src/index.ts) | `WorkspaceFiles`：`workspaceFiles` 服务与 Remote 命名空间、`Config`、四道关、切页器、`read`、`readBytes`、`stat`、`list` |
+| [`src/index.ts`](src/index.ts) | `WorkspaceFiles`：`workspaceFiles` 服务与 Remote 命名空间、`Config`、四道关、切页器、`read`、`readBytes`、`stat`、`list`，以及附件下载路由 |
+| [`src/routes.ts`](src/routes.ts) | 附件下载路由的绝对注册路径 |
 | [`src/changes.ts`](src/changes.ts) | `WorkspaceChangeFeed`：目标监听、匹配的 `fs/observed` 通知与每代流各自的队列 |
 | [`src/types.ts`](src/types.ts) | 线路类型与 `RemoteErrorDetailsMap` 错误码，以 `./types` 发布给 Client 包 |
 | [`src/client/index.ts`](src/client/index.ts)、[`provider.ts`](src/client/provider.ts)、[`change-feed.ts`](src/client/change-feed.ts) | 浏览器插件、文件元数据与按目标建立的变更流 |

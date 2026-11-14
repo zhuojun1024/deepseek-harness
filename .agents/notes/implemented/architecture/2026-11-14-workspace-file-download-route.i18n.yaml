@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-14-workspace-file-download-route.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-14-workspace-file-download-route.md
+/agent-note-download-workspace-files-through-an-owner-only-attachment-route:
+  en: 001bbd407a11a709
+  zh: 2a28b56fe8b903a2
+/agent-note-download-workspace-files-through-an-owner-only-attachment-route/problem:
+  en: b42c0d26d322b802
+  zh: 17bc5264c0f8eecc
+/agent-note-download-workspace-files-through-an-owner-only-attachment-route/decision:
+  en: 370d3e0ec27e4845
+  zh: c9f6db29c9329137
+/agent-note-download-workspace-files-through-an-owner-only-attachment-route/decision/implementation:
+  en: e4dc9d88d8a6a573
+  zh: 64f60974aefbcd43
+/agent-note-download-workspace-files-through-an-owner-only-attachment-route/alternatives-considered:
+  en: 8304db4409a0df95
+  zh: ebef6e4fc3a6f574
+/agent-note-download-workspace-files-through-an-owner-only-attachment-route/consequences:
+  en: 5326669cd23fbc62
+  zh: 0cfb950c3b991d05

@@ -122,3 +122,18 @@ export function fileMediaUrl(base: string, path: string): string | undefined {
     || /^[/\\]{2}/u.test(path) || /[\u0000-\u001f\u007f]/u.test(path)) return undefined
   return new URL(`api/file?path=${encodeURIComponent(path)}`, base).href
 }
+
+/**
+ * Address a Session workspace file through the authenticated download route,
+ * whose response carries `Content-Disposition: attachment` so the browser —
+ * and a shell download listener — saves it without navigating.
+ * @param base - HTTP(S) application base, including its deployment prefix, or `dsh-app://app/`.
+ * @param sessionId - the Session whose workspace the path is read in.
+ * @param path - workspace-relative or absolute file path.
+ * @returns download URL, or undefined for unsupported bases, a missing Session, or an invalid path.
+ */
+export function workspaceFileDownloadUrl(base: string, sessionId: string, path: string): string | undefined {
+  if ((!/^https?:/u.test(base) && !base.startsWith('dsh-app://app/')) || sessionId.length === 0 || path.length === 0
+    || /^[/\\]{2}/u.test(path) || /[\u0000-\u001f\u007f]/u.test(path)) return undefined
+  return new URL(`api/workspace-file/download?${new URLSearchParams({ sessionId, path }).toString()}`, base).href
+}

@@ -28,6 +28,8 @@ kind: "package-library"
 
 `fileMediaUrl(base, path)` 从已解码的绝对路径生成带认证文件路由的 URL，支持 HTTP(S) 应用基址与桌面端 `dsh-app://app/` 来源，保留字面量百分号与部署前缀，并拒绝其他应用基址、相对路径、网络路径前缀和控制字符。Markdown 调用方先解码所写 URL；原生文件卡片路径原样传入。
 
+`workspaceFileDownloadUrl(base, sessionId, path)` 构造 Session 工作区文件下载路由的 URL，其响应携带 `Content-Disposition: attachment`。接受工作区相对与绝对路径、与 `fileMediaUrl` 相同的应用基址和路径拒绝规则；Session id 缺失返回 undefined。
+
 -----
 
 ## 已知限制与暂缓事项

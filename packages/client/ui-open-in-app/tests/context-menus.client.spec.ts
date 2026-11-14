@@ -53,11 +53,27 @@ it('offers image actions on file targets, copies absolute paths, and keeps save 
     ])
     copying.select('open-in-app.file/copyPath')
     expect(writeText).toHaveBeenCalledWith('/workspace/original.svg')
+    let clicked: { href: string; download: string } | undefined
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clicked = { href: this.href, download: this.download }
+    })
     const downloading = registry.resolve(file)
     await downloading.ready
     downloading.select('file-actions.file/download')
     downloading.dispose()
-    await vi.waitFor(() => { expect(notify).toHaveBeenCalledWith('menu.downloaded', true, expect.objectContaining({ failureLabel: 'path.revealError' })) })
+    await vi.waitFor(() => { expect(notify).toHaveBeenCalledWith('menu.downloadStarted', true) })
+    const probe = new URL(String(clicked?.href))
+    expect(probe.pathname).toBe('/api/workspace-file/download')
+    expect(probe.searchParams.get('sessionId')).toBe(id)
+    expect(probe.searchParams.get('path')).toBe('original.svg')
+    expect(clicked?.download).toBe('original.svg')
+    expect(save).not.toHaveBeenCalled()
+    click.mockRestore()
+    const saving = registry.resolve(file)
+    await saving.ready
+    saving.select('file-actions.file/saveAs')
+    saving.dispose()
+    await vi.waitFor(() => { expect(notify).toHaveBeenCalledWith('menu.saved', true, expect.objectContaining({ failureLabel: 'path.revealError' })) })
     const source = save.mock.calls[0]?.[0]
     expect(source).toMatchObject({ name: 'original.svg', mediaType: 'image/svg+xml' })
     expect(await (await source!.read!(new AbortController().signal)).text()).toBe('<svg/>')

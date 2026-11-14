@@ -1,5 +1,5 @@
 ---
-description: "Workspace file service for the web GUI: bounded reads and target-scoped filesystem watches, plus directory listing inside the Session workspace root."
+description: "Workspace file service for the web GUI: bounded reads and target-scoped filesystem watches, directory listing inside the Session workspace root, and an owner-only attachment download route."
 kind: "package-reference"
 ---
 
@@ -48,6 +48,10 @@ Mount the package beside `dsh-fs`, `dsh-sandbox-policy`, the Session store, and 
 `read` pages by lines and never by bytes; a byte window is `readBytes(path, { range: { offset?, length? } })`. `options.range.offset` is the 0-based first byte and defaults to 0; `options.range.length` is the largest number of bytes in the window and defaults to `maxBytes`, which it may not exceed — a longer window fails with `too-large` instead of arriving shortened, and an offset or length that is not an integer in range is a `gateway/bad-request`. The window comes back as `Uint8Array` data, shorter than `length` at the end of the file and empty at or past it; `eof` is true when the window includes the file's last byte. Nothing is decoded and nothing is refused as binary, so an image or a NUL-laden file reads where `read` fails with `not-text`. The same `version` and `bytes` ride along as on a page.
 
 Pass the required options object as `{}` for a complete file under `maxFileBytes`, or `{ range: {} }` for the default byte window under `maxBytes`. Oversized complete files fail rather than arriving truncated. `baseFile` and `range` can be combined, and windows remain independent of the complete-file cap. The binary Remote uses Connection's multipart response with JSON metadata and raw bytes; the generated Client returns `Uint8Array<ArrayBuffer>` without base64 decoding. Caller cancellation reaches the filesystem. The endpoint returns data, not a navigable document.
+
+### Attachment download
+
+The service registers an authenticated `GET`/`HEAD` route on the Connection carrier under `/api/workspace-file/download`. An owner browser session addresses it with a `sessionId` and a `path`; the response carries the file's bytes with `Content-Disposition: attachment`, so the browser — or a shell download listener that takes the same http(s) URL — saves the file without navigating. The request follows the same Session identity and path rules as `readBytes`, and a refusal answers the same way: a missing or malformed query is a 400, an unknown Session or an absent file a 404, a non-regular file or a permission denial a 403, and a file above `maxFileBytes` a 413. The route is exact and bypasses the Gateway, so only owner Peers reach it; a non-owner API credential receives a 403. Responses are `application/octet-stream`, never cached, and named from the path's final segment, a non-ASCII name riding in an RFC 5987 `filename*` form over an ASCII fallback.
 
 ### File-read and directory checks
 
@@ -100,7 +104,8 @@ Complete-file reads delegate size enforcement to `fs.readBytes` and return raw b
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | `WorkspaceFiles`: the `workspaceFiles` service and Remote namespace, `Config`, the gates, the page cutter, `read`, `readBytes`, `stat`, `list` |
+| [`src/index.ts`](src/index.ts) | `WorkspaceFiles`: the `workspaceFiles` service and Remote namespace, `Config`, the gates, the page cutter, `read`, `readBytes`, `stat`, `list`, and the attachment download route |
+| [`src/routes.ts`](src/routes.ts) | The absolute registration path of the attachment download route |
 | [`src/changes.ts`](src/changes.ts) | `WorkspaceChangeFeed`: target watchers, matching `fs/observed` notifications, and one queue per generation |
 | [`src/types.ts`](src/types.ts) | Wire types and the `RemoteErrorDetailsMap` codes, published as `./types` for Client packages |
 | [`src/client/index.ts`](src/client/index.ts), [`provider.ts`](src/client/provider.ts), [`change-feed.ts`](src/client/change-feed.ts) | Browser plugin, file metadata, and per-target change feeds |

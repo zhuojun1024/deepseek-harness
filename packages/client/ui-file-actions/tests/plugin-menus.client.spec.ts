@@ -48,11 +48,36 @@ it('contributes file and image operations without open-in-app and withdraws them
     const downloading = registry.resolve({ kind: 'file', value: { sessionId: SessionId('files'), path: 'report.txt' } })
     await downloading.ready
     expect(downloading.source.getSnapshot().map(action => action.id)).toEqual(['file-actions.file/download'])
+    const fetchHead = vi.fn(async (_url: string | URL, _init?: RequestInit) => new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', fetchHead)
+    let clicked: { href: string; download: string } | undefined
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clicked = { href: this.href, download: this.download }
+    })
     downloading.select('file-actions.file/download')
-    await vi.waitFor(() => { expect(notify).toHaveBeenCalledWith('menu.downloadStarted', true, undefined) })
-    expect(save).toHaveBeenCalledOnce()
-    expect(readBytes).toHaveBeenCalledWith(SessionId('files'), 'report.txt', {}, expect.any(AbortSignal))
+    await vi.waitFor(() => { expect(notify).toHaveBeenCalledWith('menu.downloadStarted', true) })
+    expect(fetchHead).toHaveBeenCalledOnce()
+    const [probeUrl] = fetchHead.mock.calls[0]!
+    const probe = new URL(String(probeUrl), document.baseURI)
+    expect(probe.pathname).toBe('/api/workspace-file/download')
+    expect(probe.searchParams.get('sessionId')).toBe('files')
+    expect(probe.searchParams.get('path')).toBe('report.txt')
+    expect(fetchHead.mock.calls[0]?.[1]?.method).toBe('HEAD')
+    expect(click).toHaveBeenCalledOnce()
+    expect(clicked?.href).toBe(String(probeUrl))
+    expect(clicked?.download).toBe('report.txt')
+    expect(save).not.toHaveBeenCalled()
+    expect(readBytes).not.toHaveBeenCalled()
+    const failing = registry.resolve({ kind: 'file', value: { sessionId: SessionId('files'), path: 'broken.txt' } })
+    await failing.ready
+    fetchHead.mockResolvedValueOnce(new Response('gone', { status: 500 }))
+    failing.select('file-actions.file/download')
+    await vi.waitFor(() => { expect(failure).toHaveBeenCalledOnce() })
+    expect(click).toHaveBeenCalledOnce()
+    fetchHead.mockRestore()
+    click.mockRestore()
     save.mockRestore()
+    failing.dispose()
     const image = registry.resolve({ kind: 'image', value: { url: 'https://example.com/image.png' } })
     await image.ready
     expect(image.source.getSnapshot().map(action => action.id)).toEqual([
@@ -64,7 +89,7 @@ it('contributes file and image operations without open-in-app and withdraws them
     expect(image.source.getSnapshot()).toEqual([])
     file.dispose()
     image.dispose()
-    expect(failure).not.toHaveBeenCalled()
+    downloading.dispose()
   } finally {
     registry.dispose()
     await runtime.dispose()
