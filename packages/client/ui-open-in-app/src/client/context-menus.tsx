@@ -1,6 +1,6 @@
 /** Native path and URL menu contributions, independent of their trigger components. */
 import { useState } from 'react'
-import { IconRightUpOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconRightUpOutlineRegular, isMobileDevice } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
@@ -62,13 +62,16 @@ export function registerContextMenus(
   ctx.effect(() => ctx.contextMenus.register({
     id: 'open-in-app.directory', target: 'directory', order: 100,
     resolve: async ({ sessionId, path }, signal) => {
-      await paths.load()
+      const native = !isMobileDevice()
+      if (native) await paths.load()
       const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
       const absolutePath = resolveWorkspacePath(cwd, path)
       signal.throwIfAborted()
       return [
-        { id: 'reveal', icon: { key: 'open-in-app.reveal' }, label: fileManager(), disabled: paths.desktop.getSnapshot() !== true,
-          run: () => open(absolutePath, 'reveal') },
+        ...native ? [{
+          id: 'reveal', icon: { key: 'open-in-app.reveal' }, label: fileManager(), disabled: paths.desktop.getSnapshot() !== true,
+          run: () => open(absolutePath, 'reveal'),
+        }] : [],
         { id: 'copyPath', icon: { key: 'open-in-app.copy' }, label: t('menu.copyDirectoryPath'), failureLabel: t('menu.copyFailed'), run: async () => {
           await navigator.clipboard.writeText(absolutePath)
           ctx.contextMenus.notify(t('menu.copied'), true)
@@ -80,11 +83,14 @@ export function registerContextMenus(
     id: 'open-in-app.file', target: 'file', order: 100,
     resolve: async (target, signal) => {
       const { sessionId, path, line } = target
-      await paths.load()
+      // Native actions run on the Host desktop, which a phone cannot drive; leaving them
+      // out also keeps this menu free of every Host read while it prepares.
+      const native = !isMobileDevice()
+      if (native) await paths.load()
       // The cwd the session reports is the whole answer: no Host read feeds this menu.
       const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
       const absolutePath = resolveWorkspacePath(cwd, path)
-      const desktop = paths.desktop.getSnapshot() === true
+      const desktop = native && paths.desktop.getSnapshot() === true
       const apps = desktop ? await paths.applications(absolutePath, signal) : []
       signal.throwIfAborted()
       const application = apps?.find(app => app.default)
@@ -97,12 +103,14 @@ export function registerContextMenus(
       return [
         { id: 'sidebar', icon: { key: 'open-in-app.sidebar' }, label: t('menu.openInSidebar'), run: openIn('sidebar') },
         { id: 'float', icon: { key: 'open-in-app.float' }, label: t('menu.openInFloat'), run: openIn('float') },
-        { id: 'reveal', icon: { key: 'open-in-app.reveal' }, label: fileManager(), disabled: !desktop,
-          ...desktop ? { run: () => open(absolutePath, 'reveal') } : {} },
-        { id: 'open', label: application ? t('open.title', { app: application.name }) : t('menu.defaultApp'),
-          icon: { key: 'open-in-app.application', ...application?.icon ? { src: application.icon } : {} },
-          disabled: application === undefined,
-          ...application === undefined ? {} : { run: () => open(absolutePath, 'open', application.id) } },
+        ...native ? [
+          { id: 'reveal', icon: { key: 'open-in-app.reveal' }, label: fileManager(), disabled: !desktop,
+            ...desktop ? { run: () => open(absolutePath, 'reveal') } : {} },
+          { id: 'open', label: application ? t('open.title', { app: application.name }) : t('menu.defaultApp'),
+            icon: { key: 'open-in-app.application', ...application?.icon ? { src: application.icon } : {} },
+            disabled: application === undefined,
+            ...application === undefined ? {} : { run: () => open(absolutePath, 'open', application.id) } },
+        ] : [],
         { id: 'copyPath', icon: { key: 'open-in-app.copy' }, failureLabel: t('menu.copyFailed'), label: t('menu.copyPath'),
           run: async () => {
             await navigator.clipboard.writeText(absolutePath)
@@ -127,6 +135,8 @@ export function registerContextMenus(
     id: 'open-in-app.image', target: 'image', order: 200,
     resolve: async (target, signal) => {
       const { sessionId, path } = target
+      // Revealing the original image runs the Host file manager, which a phone cannot show.
+      if (isMobileDevice()) return []
       await paths.load()
       const local = path !== undefined && sessionId !== undefined && paths.desktop.getSnapshot() === true
         ? await resolvePath(sessionId, path, signal) : undefined

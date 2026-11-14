@@ -9,6 +9,7 @@ import { MenuRegistry } from '@deepseek-ai/dsh-client-ui-context-menu/src/client
 import type { ContextMenus, ContextMenuTarget } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type { FileActionSource, FileSaveResult } from '@deepseek-ai/dsh-client-ui-file-actions/client'
 import { OpenInAppPathController } from '../src/client/open-path.ts'
+import * as uiPrimitives from '@deepseek-ai/dsh-client-ui-primitives'
 import { OpenInAppController } from '../src/client/controller.ts'
 import { registerFileMenus } from '@deepseek-ai/dsh-client-ui-file-actions/src/client/context-menus.tsx'
 import { registerContextMenus } from '../src/client/context-menus.tsx'
@@ -145,6 +146,24 @@ it('resolves without a Host metadata read and reports native action failures', a
   expect(web.source.getSnapshot().some(item => item.id.endsWith('/saveAs'))).toBe(false)
   expect(web.source.getSnapshot().filter(item => ['/open', '/reveal'].some(suffix => item.id.endsWith(suffix)))
     .every(item => item.disabled)).toBe(true)
+})
+
+it('offers no Host-native action on a phone and reads nothing while it prepares', async () => {
+  const h = await boot()
+  vi.spyOn(uiPrimitives, 'isMobileDevice').mockReturnValue(true)
+  const file = { kind: 'file', value: { sessionId, path: 'file.svg' } } as const
+  const items = (await h.resolve(file)).source.getSnapshot().filter(item => item.id.startsWith('open-in-app.file/'))
+  expect(items.map(item => item.id)).toEqual([
+    'open-in-app.file/sidebar', 'open-in-app.file/float', 'open-in-app.file/copyPath',
+  ])
+  expect(h.remote.session.canOpenWorkspacePath).not.toHaveBeenCalled()
+  expect(h.remote.session.workspacePathApplications).not.toHaveBeenCalled()
+  expect(h.paths.desktop.getSnapshot()).toBeNull()
+  const directory = { kind: 'directory', value: { sessionId, path: 'assets' } } as const
+  expect((await h.resolve(directory)).source.getSnapshot().filter(item => item.id.startsWith('open-in-app.directory/')))
+    .toEqual([expect.objectContaining({ id: 'open-in-app.directory/copyPath' })])
+  const image = { kind: 'image', value: { url: 'https://example.com/file.svg' } } as const
+  expect((await h.resolve(image)).source.getSnapshot().some(item => item.id.startsWith('open-in-app.image/'))).toBe(false)
 })
 
 it('opens links in the registered browser, externally, and on the clipboard', async () => {
