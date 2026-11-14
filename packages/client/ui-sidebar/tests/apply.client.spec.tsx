@@ -9,7 +9,6 @@ import { apply, inject } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { SidebarRootInjected, SidebarSectionInjected, UseSectionScroller } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { TrackProductEvent } from '@deepseek-ai/dsh-client-product-analytics/client'
-import { HeaderLeading } from '../src/client/HeaderLeading.tsx'
 import { HeaderLeadingControls } from '../src/client/HeaderLeadingControls.tsx'
 import { apply as hostApply } from '../src/index.ts'
 
@@ -47,7 +46,6 @@ async function bench(declare = true) {
         'sidebar': { kind: 'single', scope: 'root' },
         'main': { kind: 'keyed', scope: 'root' },
         'shell.leading': { kind: 'single', scope: 'root' },
-        'conversation.header.leading': { kind: 'single', scope: 'root' },
       } },
       SidebarFrame,
     )
@@ -86,12 +84,6 @@ describe('ui-sidebar apply', () => {
     expect(leading[0]!.component).toBe(HeaderLeadingControls)
     expect(leading[0]!.locale).toBe('sidebar')
     expect(leading[0]!.inject).toBe(b.slots.entries('sidebar')[0]!.inject)
-    // The narrow-frame expand button occupies the conversation header's leading seat.
-    const headerLeading = b.slots.entries('conversation.header.leading')
-    expect(headerLeading).toHaveLength(1)
-    expect(headerLeading[0]!.component).toBe(HeaderLeading)
-    expect(headerLeading[0]!.locale).toBe('sidebar')
-    expect(headerLeading[0]!.inject).toBe(b.slots.entries('sidebar')[0]!.inject)
     const injected = (b.slots.entries('sidebar')[0]!.inject as () => SidebarRootInjected)()
     expect(Object.keys(injected)).toEqual(['startSession', 'toggleSidebar', 'selectPanel', 'setPinned', 'trackEntryClick', 'hooks'])
     expect(injected.hooks.panels.getSnapshot()).toEqual([])

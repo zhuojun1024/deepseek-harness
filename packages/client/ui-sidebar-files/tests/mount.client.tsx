@@ -18,7 +18,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SidebarRightTabActions, SidebarRightTabInfo } from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import { TreeFixture } from './tree-fixture.client.tsx'
 import type { FileTreeInput } from '../src/client/FileTree.tsx'
-import type { FactoryComponentPropsOf, GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
+import type { FactoryComponentPropsOf } from '@deepseek-ai/dsh-client-ui-slots'
 import type { PaneId, TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import { filesFace } from '../src/client/face.ts'
 import type { FilesInjected } from '../src/client/face.ts'
@@ -36,8 +36,6 @@ export const SESSION = 's-test' as SessionId
 export const ROOT = '/work/app'
 export const TAB = 'tab-1' as TabId
 export const PANE = 'pane-1' as PaneId
-
-const useSidebarInfo: GlobalStandardProps['useSidebarInfo'] = selector => selector({ narrow: false, collapsed: false, headerVisible: false })
 
 /** Test-local selector hook over a framework-neutral store instance. */
 function hookOf<T>(inst: { subscribe: (fn: () => void) => () => void; getSnapshot: () => T }) {
@@ -154,7 +152,6 @@ function harness(placement: Placement, controller: AbortController) {
     renderSlot: () => null,
     openMenu,
     useContextMenu: contextMenuHook(openMenu),
-    useSidebarInfo,
     renderFactorySlot: (name: string, input: object) => name === 'sidebar.files.tree' ? <TreeFixture {...input as FileTreeInput} t={t} /> : null,
     sessionId: SESSION,
     useSessions: <S,>(sel: (s: SessionListState) => S) => sel(sessionsAt(placement.cwd)),

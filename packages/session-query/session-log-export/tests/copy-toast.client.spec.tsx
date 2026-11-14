@@ -14,7 +14,7 @@ const unused = (): never => { throw new Error('This isolated component does not 
 const standard: GlobalStandardProps = {
   useSessions: unused, useSessionStatus: unused, useSessionRetainInfo: unused,
   useSessionAccess: () => true, useRemoteAccess: () => true, useWorkspaceAccess: () => true,
-  usePanelInfo: unused, useSidebarInfo: unused, useContextMenu: contextMenuHook(), useResource: unused, useWorkspaces: unused,
+  usePanelInfo: unused, useContextMenu: contextMenuHook(), useResource: unused, useWorkspaces: unused,
 }
 
 function bindSnapshot(store: ObservableSnapshot<SessionMarkdownCopyState>) {

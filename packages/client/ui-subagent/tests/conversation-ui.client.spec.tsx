@@ -113,7 +113,6 @@ function props(
     useSessionRetainInfo: unused,
     useWorkspaces: unused,
     useResource: unused,
-    useSidebarInfo: unused,
     ...allowAllAccess,
     useContextMenu: contextMenuHook(),
     useProjection: unused,

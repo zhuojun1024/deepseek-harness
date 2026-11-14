@@ -23,7 +23,7 @@ function view(partial: Partial<AgentPresetSectionState> = {}, startCreatorDraft?
   const props: AgentPresetSectionProps = { ...actions,
     ...(startCreatorDraft === undefined ? {} : { startCreatorDraft }),
     usePanelInfo: unusedHook, useSessions: unusedHook, useSessionStatus: unusedHook, useSessionRetainInfo: unusedHook,
-    useWorkspaces: unusedHook, useResource: unusedHook, useSidebarInfo: unusedHook,
+    useWorkspaces: unusedHook, useResource: unusedHook,
     ...allowAllAccess,
     useContextMenu: contextMenuHook(),
     useAgentPresetSection: bindSnapshotSelector(store),

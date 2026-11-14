@@ -63,7 +63,6 @@ function mount(rows: readonly ScheduleCatalogEntry[] = [task], overrides: Partia
     useStore: bindSnapshotSelector(editor), actions: editor.actions,
     ...allowAllAccess, useCatalog: select => select(snapshot), useSessions: select => select(sessions),
     useWorkspaces: select => select(workspaces), usePanelInfo: select => select({ activePanelId: null }),
-    useSidebarInfo: select => select({ narrow: false, collapsed: false, headerVisible: false }),
     useSessionStatus: select => select(new Map()), useSessionRetainInfo: () => undefined,
     useResource: () => { throw new Error('Task editor loads no document resources') },
     useContextMenu: contextMenuHook(),

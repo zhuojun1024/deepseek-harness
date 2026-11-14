@@ -91,9 +91,6 @@ function mountFrame(windowWidth = frameWidth, content?: AppFrameProps['renderSlo
     getSnapshot: () => instance.getSnapshot().panelInfo,
     subscribe: listener => instance.subscribe(listener),
   })
-  // The frame reads layoutInfo from useStore; the standard sidebar hook rides
-  // the props share unused, so a constant stub satisfies the type.
-  const useSidebarInfo: GlobalStandardProps['useSidebarInfo'] = selector => selector({ narrow: false, collapsed: false, headerVisible: false })
   const element = () => (
     <AppFrame
       useStore={useStore}
@@ -101,7 +98,6 @@ function mountFrame(windowWidth = frameWidth, content?: AppFrameProps['renderSlo
       renderSlot={renderSlot}
       useSessions={useSessions}
       usePanelInfo={usePanelInfo}
-      useSidebarInfo={useSidebarInfo}
       useFoldedLandscape={bindSnapshotSelector(foldedLandscape)}
       useSessionStatus={useSessionStatus}
       useSessionRetainInfo={() => undefined}
@@ -367,6 +363,18 @@ describe('AppFrame normal width concessions', () => {
     expect(tracks(frame)).toEqual([420, 0])
   })
 
+  it('uses the post-collapse left rail to permit a narrow first opening', () => {
+    frameWidth = 800
+    const { frame, instance, rightOwner } = mountFrame()
+    act(() => { instance.actions.toggleSidebar() })
+    expect(tracks(frame)).toEqual([280, 0])
+    expect(rightOwner()).toEqual({ width: 344, viewportWidth: 800, canShow: true })
+    act(() => { instance.actions.openRightbar(true, false) })
+    expect(tracks(frame)).toEqual([56, 360])
+    expect(instance.getSnapshot().layoutInfo).toMatchObject({ narrowExpanded: false, rightbar: 360 })
+    expect(rightOwner().canShow).toBe(true)
+  })
+
   it.each([[768, 312, true], [767, 345, true], [700, 300, true], [699, 0, false]] as const)('reports eligibility at %ipx', (width, rightbar, canShow) => {
     frameWidth = width
     const { instance, rightOwner } = mountFrame()
@@ -381,32 +389,30 @@ describe('AppFrame normal width concessions', () => {
     expect(rightOwner().canShow).toBe(false)
   })
 
-  it('hides the collapsed rail while narrow once the header is drawn', () => {
-    const { frame, instance, sidebarOwner, getByTestId, queryByTestId } = mountFrame()
-    // Start wide with the sidebar closed: the 56px rail, header not yet drawn.
+  it('auto-collapses only below 1024px and preserves the wide sidebar preference', () => {
+    const { frame, instance } = mountFrame()
+    act(() => { instance.actions.setSidebar(400) })
+    resize(1024)
+    expect(tracks(frame)[0]).toBe(400)
+    resize(1023)
+    expect(tracks(frame)[0]).toBe(56)
+    act(() => { instance.actions.toggleSidebar() })
+    expect(tracks(frame)[0]).toBe(400)
+    resize(980)
+    expect(tracks(frame)[0]).toBe(400)
     act(() => { instance.actions.toggleSidebar() })
     expect(tracks(frame)[0]).toBe(56)
-    // Narrow the frame: the closed preference stays the collapsed rail, and
-    // the header is hidden (the blank Hero), so the rail keeps its track and
-    // its own toggle.
-    resize(980)
-    expect(tracks(frame)[0]).toBe(56)
-    expect(sidebarOwner()).toEqual({ collapsed: true, width: 56, drawer: false })
-    expect(getByTestId('sidebar-content')).toBeTruthy()
-    // The header reports itself drawn: the rail yields its track entirely so
-    // the header's expand control is the only way back into the sidebar.
-    act(() => { instance.actions.setHeaderVisible(true) })
-    expect(tracks(frame)[0]).toBe(0)
-    expect(queryByTestId('sidebar-content')).toBeNull()
-    // The header unmounts (a global panel): the rail regrows with no header to
-    // host the button.
-    act(() => { instance.actions.setHeaderVisible(false) })
-    expect(tracks(frame)[0]).toBe(56)
-    expect(getByTestId('sidebar-content')).toBeTruthy()
-    // A wide frame never hides the rail: the collapsed sidebar keeps its track.
     resize(1920)
-    act(() => { instance.actions.setHeaderVisible(true) })
-    expect(tracks(frame)[0]).toBe(56)
+    expect(tracks(frame)[0]).toBe(400)
+  })
+
+  it('re-expands a wide-closed sidebar at the default width while narrow', () => {
+    const { frame, instance } = mountFrame()
+    act(() => { instance.actions.toggleSidebar() })
+    resize(980)
+    act(() => { instance.actions.toggleSidebar() })
+    expect(tracks(frame)[0]).toBe(280)
+    expect(instance.getSnapshot().layoutInfo.sidebar).toBe(0)
   })
 })
 

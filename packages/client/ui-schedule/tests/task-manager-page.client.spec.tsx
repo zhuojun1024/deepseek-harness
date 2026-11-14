@@ -164,7 +164,6 @@ function mount(
     useSessions: select => select(sessions),
     useWorkspaces: select => select(workspaces),
     usePanelInfo: select => select({ activePanelId: null }),
-    useSidebarInfo: select => select({ narrow: false, collapsed: false, headerVisible: false }),
     useSessionStatus: select => select(new Map()),
     useSessionRetainInfo: () => undefined,
     useResource: () => { throw new Error('The task manager does not load document resources') },
@@ -1735,7 +1734,6 @@ describe('Task manager details', () => {
       size={size}
       active={false}
       usePanelInfo={unread}
-      useSidebarInfo={unread}
       useSessions={unread}
       useWorkspaces={unread}
       useContextMenu={contextMenuHook()} useResource={unread}

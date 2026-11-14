@@ -539,12 +539,6 @@ export interface ConversationSessionHeaderInjected {
   open: (sessionId: SessionId) => void
   /** Select and activate one registered Conversation View. */
   selectView: (view: string) => void
-  /**
-   * Report whether this header is drawn, so the frame knows whether the
-   * collapsed sidebar keeps its rail (header hidden) or yields its track
-   * (header drawn, on a narrow frame). Written only by the header itself.
-   */
-  setHeaderVisible: (visible: boolean) => void
 }
 
 /** Owner share of the resident composer bar. */

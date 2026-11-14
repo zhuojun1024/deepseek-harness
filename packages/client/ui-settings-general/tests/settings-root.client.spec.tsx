@@ -18,7 +18,6 @@ import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 // Every fixture carries the resource hook the resources plugin merges into GlobalStandardProps.
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
 const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({ activePanelId: null })
-const useSidebarInfo: GlobalStandardProps['useSidebarInfo'] = selector => selector({ narrow: false, collapsed: false, headerVisible: false })
 
 const scrollIntoView = vi.fn()
 let scrollIntoViewDescriptor: PropertyDescriptor | undefined
@@ -115,8 +114,7 @@ function mount({
     useShortcuts: select => select(shortcuts),
     useSessions: select => select(sessions),
     useSessionStatus,
-    usePanelInfo, useSidebarInfo, useSessionRetainInfo: () => undefined, useResource,
-
+    usePanelInfo, useSessionRetainInfo: () => undefined, useResource,
     useWorkspaces: unusedHook,
     ...allowAllAccess,
     useContextMenu: contextMenuHook(),

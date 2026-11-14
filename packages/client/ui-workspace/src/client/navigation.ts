@@ -291,7 +291,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   openSession(target: SessionTarget): void {
-    this.revealMain(target, this.lifetime.signal)
+    this.replaceMain(target, this.lifetime.signal, 'reveal')
   }
 
   openWorkspace(
@@ -318,7 +318,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       throw error
     }
     if (navigation.aborted) return
-    this.revealMain(sessionId, navigation, beforeOpen)
+    this.replaceMain(sessionId, navigation, 'reveal', beforeOpen)
   }
 
   async forkSession(
@@ -355,10 +355,6 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         return
       }
       this.clearMain()
-      // The blank hero has no session header to host an expand control, so the
-      // narrow frame keeps its 56px rail as the way back; collapsing only drops
-      // the wide track (or the narrow expansion override) to that resting state.
-      this.ctx.layout.collapseSidebar()
       return
     }
     const opening = this.openWorkspace(target, initializeDraft ? (id) => {
@@ -522,22 +518,6 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     this.selection.set({})
     previous?.release()
     this.ctx.layout.selectPanel(null)
-  }
-
-  /**
-   * Replace the main Session for a user-initiated navigation: the main area
-   * reveals the Conversation, and a narrow frame collapses its sidebar so the
-   * Conversation owns the full width (a wide frame keeps its sidebar state).
-   * Startup restoration replaces through replaceMain's 'preserve' instead, so
-   * it never closes a sidebar the user left open.
-   */
-  private revealMain(
-    target: SessionTarget,
-    signal: AbortSignal,
-    beforeOpen?: (sessionId: SessionId) => void,
-  ): void {
-    this.replaceMain(target, signal, 'reveal', beforeOpen)
-    this.ctx.layout.collapseSidebar()
   }
 
   private replaceMain(

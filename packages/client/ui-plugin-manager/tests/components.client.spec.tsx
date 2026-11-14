@@ -159,7 +159,6 @@ function renderTab(
     useSessionStatus: unusedStandardHook,
     useSessionRetainInfo: unusedStandardHook,
     useResource: unusedStandardHook,
-    useSidebarInfo: unusedStandardHook,
     ...allowAllAccess,
     useContextMenu: contextMenuHook(),
   }

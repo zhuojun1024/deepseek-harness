@@ -20,7 +20,6 @@ import { SettingsDocumentStore } from '../src/client/settings-document-store.ts'
 // Every fixture carries the resource hook the resources plugin merges into GlobalStandardProps.
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
 const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({ activePanelId: null })
-const useSidebarInfo: GlobalStandardProps['useSidebarInfo'] = selector => selector({ narrow: false, collapsed: false, headerVisible: false })
 
 /** Store over a real mirror derived from the same scripted context. */
 function derivedDocumentStore(remote: object) {
@@ -46,7 +45,7 @@ const noAttention: AttentionSnapshot = new Map()
 const useSessionStatus: TriggerContentProps['useSessionStatus'] = selector => selector(noAttention)
 const kit = {
   useSessions: unusedHook, useSessionStatus,
-  usePanelInfo, useSidebarInfo, useSessionRetainInfo: () => undefined, useResource, useWorkspaces: unusedHook,
+  usePanelInfo, useSessionRetainInfo: () => undefined, useResource, useWorkspaces: unusedHook,
   ...allowAllAccess,
   useContextMenu: contextMenuHook(),
 }

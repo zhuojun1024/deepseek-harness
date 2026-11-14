@@ -12,7 +12,6 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { SidebarPanelMetadata, SidebarRootInjected, SidebarSectionInjected } from './contract/slots.ts'
 import { createPanelPins } from './panel-pins.ts'
-import { HeaderLeading } from './HeaderLeading.tsx'
 import { HeaderLeadingControls } from './HeaderLeadingControls.tsx'
 import { SidebarRoot } from './SidebarRoot.tsx'
 import { PanelIcon } from './PanelIcon.tsx'
@@ -115,13 +114,5 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: injectProps,
   }, HeaderLeadingControls))
-  // On a narrow frame the frame hides the 56px rail once a session header is
-  // drawn, so the conversation header's leading seat hosts the only toggle
-  // left; the occupant renders nothing while the rail is visible.
-  ctx.slots.inject('conversation.header.leading', () => ctx.slots.register({
-    name: 'conversation.header.leading',
-    locale: NS,
-    inject: injectProps,
-  }, HeaderLeading))
   syncPanels()
 }

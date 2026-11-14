@@ -72,7 +72,6 @@ const noStatus: SessionStatusSnapshot = new Map()
 // Every fixture carries the resource hook the resources plugin merges into GlobalStandardProps.
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
 const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({ activePanelId: null })
-const useSidebarInfo: GlobalStandardProps['useSidebarInfo'] = selector => selector({ narrow: false, collapsed: false, headerVisible: false })
 
 /** The global standard seat every root-scope entry receives. */
 const standard: GlobalStandardProps = {
@@ -82,7 +81,6 @@ const standard: GlobalStandardProps = {
   usePanelInfo,
   useContextMenu: contextMenuHook(), useResource,
   useWorkspaces: hook(workspaces),
-  useSidebarInfo,
   ...allowAllAccess,
 }
 

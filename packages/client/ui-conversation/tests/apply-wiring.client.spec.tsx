@@ -23,7 +23,6 @@ async function bench(options: { declareConversation?: boolean } = {}) {
     openSession: vi.fn(),
   } as never)
   runtime.ctx.provide('configForms', { developerTools: { enabled: developerTools }, get: () => stubConfigForm().scope } as never)
-  runtime.ctx.provide('layout', { setHeaderVisible: vi.fn() } as never)
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)
   runtime.slots.installLocale(locale)

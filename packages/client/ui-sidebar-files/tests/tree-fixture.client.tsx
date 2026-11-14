@@ -26,7 +26,6 @@ const seats = {
   usePanelInfo: unused,
   useResource: unused,
   useContextMenu: unused,
-  useSidebarInfo: unused,
 }
 
 /** Supply selected local Components through the same local-props-only binding as the renderer. */

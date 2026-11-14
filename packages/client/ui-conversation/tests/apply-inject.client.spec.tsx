@@ -74,7 +74,6 @@ async function bench(renderQuote = false) {
     },
     get: () => stubConfigForm().scope,
   } as never)
-  runtime.ctx.provide('layout', { setHeaderVisible: vi.fn() } as never)
   const connectWorkspace = vi.fn(async () => ROOT)
   const references = new Map<SessionId, SessionReference>()
   const opened = vi.fn<(id: SessionId) => void>()

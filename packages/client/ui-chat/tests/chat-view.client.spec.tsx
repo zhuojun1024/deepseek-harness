@@ -497,7 +497,6 @@ function makeHarness(
     resolveFilePath: vi.fn((path: string) => path),
     renderFactorySlot,
     usePanelInfo: selector => selector({ activePanelId: null }),
-    useSidebarInfo: selector => selector({ narrow: false, collapsed: false, headerVisible: false }),
     sessionId: SID,
     useSession: bindSnapshotSelector(session.source),
     useChat: bindSnapshotSelector(chatSource.source),

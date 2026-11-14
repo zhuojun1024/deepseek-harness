@@ -12,7 +12,6 @@ import type {
   SidebarFooterActionOwnerProps, SidebarPanelMetadata, SidebarRootComponentProps, SidebarSectionHookContext, SidebarSectionOwnerProps,
   SidebarSettingsOwnerProps,
 } from '../src/client/contract/slots.ts'
-import { HeaderLeading, type HeaderLeadingProps } from '../src/client/HeaderLeading.tsx'
 import { HeaderLeadingControls, type HeaderLeadingControlsProps } from '../src/client/HeaderLeadingControls.tsx'
 import { SidebarRoot } from '../src/client/SidebarRoot.tsx'
 import { en } from '../src/client/locales.ts'
@@ -21,8 +20,6 @@ import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts
 // Every fixture carries the resource hook the resources plugin merges into GlobalStandardProps.
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
 const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({ activePanelId: null })
-const useSidebarInfo: GlobalStandardProps['useSidebarInfo'] =
-  selector => selector({ narrow: false, collapsed: false, headerVisible: false })
 
 const t: SidebarRootComponentProps['t'] = makeTranslate({ ...commonEn, ...en })
 
@@ -43,7 +40,7 @@ const useSessionStatus: SidebarRootComponentProps['useSessionStatus'] = selector
 
 function makeHeaderProps(): HeaderLeadingControlsProps {
   return {
-    useContextMenu: contextMenuHook(), useSidebarInfo,
+    useContextMenu: contextMenuHook(),
     useSessions: neverHook, useSessionStatus, useSessionRetainInfo: neverHook,
     usePanelInfo, useResource, useWorkspaces: neverHook, ...allowAllAccess,
     usePanels: selector => selector([]), useShortcuts: selector => selector([]),
@@ -76,8 +73,7 @@ function mountShell({ collapsed = false, width = 300, drawer = false, shortcuts 
       drawer={current.drawer}
       collapsed={current.collapsed} width={current.width}
       useSessions={neverHook} useSessionStatus={useSessionStatus} useSessionRetainInfo={neverHook}
-      usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector(panels)}
-      useEntryPins={selector => selector([])}
+      usePanelInfo={usePanelInfo} selectPanel={() => {}} usePanels={selector => selector(panels)} useEntryPins={selector => selector([])}
       useEntryActions={selector => selector(false)} setPinned={vi.fn()}
       useShortcuts={selector => selector(shortcuts)}
       useContextMenu={contextMenuHook()} useResource={useResource} useWorkspaces={neverHook}
@@ -178,7 +174,7 @@ describe('SidebarRoot shell', () => {
     cleanup()
     document.documentElement.dataset.platform = 'darwin'
     render(<HeaderLeadingControls toggleSidebar={vi.fn()} startSession={vi.fn()} selectPanel={vi.fn()} trackEntryClick={vi.fn()} t={t}
-      usePanelInfo={neverHook} useSidebarInfo={useSidebarInfo} useSessions={neverHook} useSessionStatus={neverHook}
+      usePanelInfo={neverHook} useSessions={neverHook} useSessionStatus={neverHook}
       useSessionRetainInfo={neverHook} useContextMenu={contextMenuHook()} useResource={useResource} useWorkspaces={neverHook}
       {...allowAllAccess}
       usePanels={select => select([])} useEntryPins={select => select([])}
@@ -224,8 +220,7 @@ describe('SidebarRoot shell', () => {
     render(<SidebarRoot
       collapsed={false} width={300} drawer={false}
       useSessions={neverHook} useSessionStatus={useSessionStatus} useSessionRetainInfo={neverHook}
-      usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
-      useEntryPins={selector => selector([])}
+      usePanelInfo={usePanelInfo} selectPanel={() => {}} usePanels={selector => selector([])} useEntryPins={selector => selector([])}
       useEntryActions={selector => selector(false)} setPinned={vi.fn()}
       useShortcuts={selector => selector([])}
       useContextMenu={contextMenuHook()} useResource={useResource} useWorkspaces={neverHook}
@@ -258,8 +253,7 @@ describe('SidebarRoot shell', () => {
       drawer={false}
       collapsed={false} width={300}
       useSessions={neverHook} useSessionStatus={useSessionStatus} useSessionRetainInfo={neverHook}
-      usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
-      useEntryPins={selector => selector([])}
+      usePanelInfo={usePanelInfo} selectPanel={() => {}} usePanels={selector => selector([])} useEntryPins={selector => selector([])}
       useEntryActions={selector => selector(false)} setPinned={vi.fn()}
       useShortcuts={selector => selector([])}
       useContextMenu={contextMenuHook()} useResource={useResource} useWorkspaces={neverHook}
@@ -284,8 +278,7 @@ describe('SidebarRoot shell', () => {
       drawer={false}
       collapsed={false} width={300}
       useSessions={neverHook} useSessionStatus={useSessionStatus} useSessionRetainInfo={neverHook}
-      usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
-      useEntryPins={selector => selector([])}
+      usePanelInfo={usePanelInfo} selectPanel={() => {}} usePanels={selector => selector([])} useEntryPins={selector => selector([])}
       useEntryActions={selector => selector(false)} setPinned={vi.fn()}
       useShortcuts={selector => selector([])}
       useContextMenu={contextMenuHook()} useResource={useResource} useWorkspaces={neverHook}
@@ -314,8 +307,7 @@ describe('SidebarRoot shell', () => {
     render(<SidebarRoot
       collapsed={false} width={300} drawer={false}
       useSessions={neverHook} useSessionStatus={useSessionStatus} useSessionRetainInfo={neverHook}
-      usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
-      useEntryPins={selector => selector([])}
+      usePanelInfo={usePanelInfo} selectPanel={() => {}} usePanels={selector => selector([])} useEntryPins={selector => selector([])}
       useEntryActions={selector => selector(false)} setPinned={vi.fn()}
       useShortcuts={selector => selector([])}
       useContextMenu={contextMenuHook()} useResource={useResource} useWorkspaces={neverHook}
@@ -367,8 +359,7 @@ describe('SidebarRoot shell', () => {
       drawer={false}
       collapsed={false} width={300}
       useSessions={neverHook} useSessionStatus={useSessionStatus} useSessionRetainInfo={neverHook}
-      usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
-      useEntryPins={selector => selector([])}
+      usePanelInfo={usePanelInfo} selectPanel={() => {}} usePanels={selector => selector([])} useEntryPins={selector => selector([])}
       useEntryActions={selector => selector(false)} setPinned={vi.fn()}
       useShortcuts={selector => selector([])}
       useContextMenu={contextMenuHook()} useResource={useResource} useWorkspaces={neverHook}
@@ -433,8 +424,7 @@ describe('SidebarRoot shell', () => {
       drawer={false}
       collapsed width={56}
       useSessions={neverHook} useSessionStatus={useSessionStatus} useSessionRetainInfo={neverHook}
-      usePanelInfo={usePanelInfo} useSidebarInfo={useSidebarInfo} selectPanel={() => {}} usePanels={selector => selector([])}
-      useEntryPins={selector => selector([])}
+      usePanelInfo={usePanelInfo} selectPanel={() => {}} usePanels={selector => selector([])} useEntryPins={selector => selector([])}
       useEntryActions={selector => selector(false)} setPinned={vi.fn()}
       useShortcuts={selector => selector([])}
       useContextMenu={contextMenuHook()} useResource={useResource} useWorkspaces={neverHook}
@@ -532,21 +522,6 @@ describe('Windows caption New Session analytics', () => {
       [{ menu_name: 'new_session', position: 'sidebar' }],
     ])
   })
-})
-
-it('shows the narrow-frame expand button only while the rail is hidden', () => {
-  const toggleSidebar = vi.fn()
-  const mount = (info: { narrow: boolean; collapsed: boolean; headerVisible: boolean }) => render(
-    <HeaderLeading {...({
-      useSidebarInfo: (selector: (value: typeof info) => unknown) => selector(info),
-      toggleSidebar, t,
-    } as HeaderLeadingProps)} />,
-  )
-  const shown = mount({ narrow: true, collapsed: true, headerVisible: true })
-  fireEvent.click(shown.getByRole('button', { name: en['toggle.open'] }))
-  expect(toggleSidebar).toHaveBeenCalledOnce()
-  expect(mount({ narrow: true, collapsed: false, headerVisible: true }).container.querySelector('[data-sidebar-expand]')).toBeNull()
-  expect(mount({ narrow: false, collapsed: true, headerVisible: true }).container.querySelector('[data-sidebar-expand]')).toBeNull()
 })
 
 describe('Windows caption tooltips', () => {

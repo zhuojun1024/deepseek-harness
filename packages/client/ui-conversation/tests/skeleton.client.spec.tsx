@@ -190,7 +190,6 @@ function mount(
   const inputActions = wiring.actions
   const stop = vi.fn()
   const open = vi.fn()
-  const setHeaderVisible = vi.fn()
   const slotCalls: string[] = []
   const headerFactory = vi.fn<ConversationSessionHeaderSlotProps['renderFactorySlot']>(() => null)
   const lineageOwners: ConversationHeaderLineageOwnerProps[] = []
@@ -243,7 +242,6 @@ function mount(
           useTrajectory={useTrajectory}
           useSessions={props.useSessions}
           usePanelInfo={props.usePanelInfo}
-          useSidebarInfo={props.useSidebarInfo}
           useContextMenu={contextMenuHook()} useResource={useResource}
           useSessionStatus={useSessionStatus}
           useSessionRetainInfo={() => undefined}
@@ -257,7 +255,6 @@ function mount(
           renderSlot={renderSlot as never}
           renderFactorySlot={headerFactory}
           open={open}
-          setHeaderVisible={(visible) => { setHeaderVisible(visible) }}
           selectView={(view) => { store.actions.setView(view) }}
           t={t}
         />
@@ -276,7 +273,6 @@ function mount(
           useTrajectory={useTrajectory}
           useSessions={props.useSessions}
           usePanelInfo={props.usePanelInfo}
-          useSidebarInfo={props.useSidebarInfo}
           useContextMenu={contextMenuHook()} useResource={useResource}
           useSessionStatus={useSessionStatus}
           useSessionRetainInfo={() => undefined}
@@ -306,10 +302,8 @@ function mount(
           useConversation={useConversation}
           useSessions={props.useSessions}
           usePanelInfo={props.usePanelInfo}
-          useSidebarInfo={props.useSidebarInfo}
           useSessionStatus={useSessionStatus}
           useSessionRetainInfo={() => undefined}
-
           useWorkspaces={props.useWorkspaces}
           {...allowAllAccess}
           useProjection={(() => undefined)}
@@ -368,7 +362,6 @@ function mount(
       useTrajectory,
       useSessions: bindSnapshotSelector(sessions),
       usePanelInfo: selector => selector({ activePanelId: null }),
-      useSidebarInfo: selector => selector({ narrow: false, collapsed: false, headerVisible: false }),
       useContextMenu: contextMenuHook(),
       useResource,
       useSessionStatus,
@@ -396,7 +389,6 @@ function mount(
   }) as ConversationSlotProps['renderFactorySlot']
   const runtimeProps: PropsRuntime<'main.conversation'> & Pick<ConversationSlotProps, 'SessionProvider'> = {
     usePanelInfo: selector => selector({ activePanelId: null }),
-    useSidebarInfo: selector => selector({ narrow: false, collapsed: false, headerVisible: false }),
     sessionId,
     SessionProvider,
     useSession: sessionId === undefined ? () => undefined : useSession,
@@ -416,7 +408,6 @@ function mount(
   const view = render(<ConversationMainPanel {...props} />)
   return {
     view, store, wiring, sink, retargetWorkspace, session, conversation, slotCalls, headerFactory, lineageOwners, seatOwners, open,
-    setHeaderVisible,
     pickerOwner: () => pickerOwner,
     frameOwner: () => frameOwners.at(-1),
     setPinned,

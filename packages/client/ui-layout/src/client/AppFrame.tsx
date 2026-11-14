@@ -178,10 +178,6 @@ export function AppFrame({
   if (sidebarTransition.drawer !== drawer || sidebarTransition.collapsed !== sidebarCollapsed) {
     setSidebarTransition({ drawer, collapsed: sidebarCollapsed, instant: drawer && sidebarCollapsed && sidebarTransition.collapsed })
   }
-  // A narrow frame with the sidebar collapsed AND the header drawn hides the
-  // 56px rail entirely: the rail's own toggle is gone, so the header's expand
-  // control is the only way back in. The blank Hero (no header) keeps the rail.
-  const narrowHidden = narrow && !drawer && sidebarCollapsed && layoutInfo.headerVisible
   const sidebarPreference = sidebarCollapsed
     ? 0
     : layoutInfo.sidebar === 0 ? SIDEBAR_DEFAULT : layoutInfo.sidebar
@@ -189,19 +185,14 @@ export function AppFrame({
   // Desktop reopen controls occupy the frame's shell.leading seat (macOS) or
   // the Windows caption row; neither platform keeps an icon rail.
   const darwin = document.documentElement.dataset.platform === 'darwin'
-  // The hidden rail (narrowHidden) and the drawer/darwin/windows postures yield
-  // no rail track at all.
-  const collapsedWidth = drawer || darwin || windowsTitlebar || narrowHidden ? 0 : SIDEBAR_COLLAPSED
+  const collapsedWidth = drawer || darwin || windowsTitlebar ? 0 : SIDEBAR_COLLAPSED
   // Opening on a narrow frame collapses the left sidebar. Eligibility must
   // include that space before the occupant's first shown report arrives.
   const normal = computeColumns(
     viewport, !layoutInfo.rightbarShown && narrow ? 0 : sidebarPreference, rightbarPreference, collapsedWidth, centeredSidebar,
   )
-  // The hidden rail yields its track so the header's expand control is the only
-  // way back into the sidebar.
   const cols = computeColumns(
-    viewport, drawer || narrowHidden ? 0 : sidebarPreference,
-    layoutInfo.rightbarTrack ? rightbarPreference : 0, collapsedWidth, centeredSidebar,
+    viewport, drawer ? 0 : sidebarPreference, layoutInfo.rightbarTrack ? rightbarPreference : 0, collapsedWidth, centeredSidebar,
   )
   const colsRef = useRef(cols)
   colsRef.current = cols
@@ -323,7 +314,7 @@ export function AppFrame({
       <div className={css.sidebarCol}
         style={drawer ? { width: sidebarWidth } : undefined}
         {...{ inert: drawer && sidebarCollapsed ? '' : undefined }}>
-        {!narrowHidden && sidebar}
+        {sidebar}
       </div>
       <>
         <CenterColumn inert={drawerOpen}>{main}</CenterColumn>
@@ -342,8 +333,7 @@ export function AppFrame({
           {leading}
         </div>
       )}
-      {/* The collapsed rail is fixed-width: no resize handle while closed. The
-          drawer and centered modes are not resizable. */}
+      {/* The collapsed rail is fixed-width: no resize handle while closed. */}
       {!drawer && !centeredSidebar && !sidebarCollapsed && <DragHandle side="sidebar" left={cols.sidebar} onStart={onSidebarStart} onDrag={onSidebarDrag} onEnd={onDragEnd} />}
       {layoutInfo.rightbarShown && !layoutInfo.rightbarFullscreen && normal.rightbar > 0 && (
         <DragHandle side="rightbar" left={viewport - normal.rightbar} onStart={onRightbarStart} onDrag={onRightbarDrag} onEnd={onDragEnd} />

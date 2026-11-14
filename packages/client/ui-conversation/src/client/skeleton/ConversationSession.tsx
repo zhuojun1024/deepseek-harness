@@ -1,6 +1,6 @@
 /** Strict per-session header/body content inserted into the resident conversation layout. */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { Button, IconEllipsisOutlineRegular, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -107,24 +107,13 @@ function equalBreadcrumbs(left: readonly Breadcrumb[], right: readonly Breadcrum
  */
 export function ConversationSessionHeader({
   sessionId, hideChrome, useSessions, useConversationViews, useStore,
-  renderSlot, renderFactorySlot, open, useContextMenu, selectView, setPinned, setHeaderVisible, t, useEntryPins, useEntryActions,
+  renderSlot, renderFactorySlot, open, useContextMenu, selectView, setPinned, t, useEntryPins, useEntryActions,
 }: ConversationSessionHeaderProps) {
   const { getTriggerProps } = useContextMenu()
   const tabs = useConversationViews(value => value)
   const selectedId = useStore(s => s.view)
   const active = resolveActiveView(tabs, selectedId)
   const ancestry = useSessions(s => deriveAncestry(s, sessionId), equalBreadcrumbs)
-  // The header reports its own visibility to the frame: on a narrow frame the
-  // frame keeps the collapsed sidebar's rail only while this header is hidden
-  // (the blank Hero), and yields the rail's track once the header is drawn so
-  // the header's expand control is the only way back into the sidebar. The
-  // unmount reports false so a global panel (no conversation header) keeps the
-  // rail rather than hiding it with no header left to host the button.
-  useEffect(() => {
-    setHeaderVisible(!hideChrome)
-    return () => { setHeaderVisible(false) }
-  }, [hideChrome, setHeaderVisible])
-
   const unpinned = useEntryPins(ids => ids)
   const hasEntryActions = useEntryActions(registered => registered)
   const showTabs = !hideChrome && tabs.length > 1

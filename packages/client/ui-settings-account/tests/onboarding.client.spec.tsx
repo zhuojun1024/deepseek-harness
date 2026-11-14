@@ -22,7 +22,7 @@ it('claims onboarding while loading, offers API key fallback, and completes afte
   const unused = (): never => { throw new Error('AccountOnboarding does not consume global hooks') }
   const globals: GlobalStandardProps = {
     usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
-    useSessionRetainInfo: unused, useResource: unused, useWorkspaces: unused, useSidebarInfo: unused,
+    useSessionRetainInfo: unused, useResource: unused, useWorkspaces: unused,
     ...allowAllAccess,
     useContextMenu: contextMenuHook(),
   }

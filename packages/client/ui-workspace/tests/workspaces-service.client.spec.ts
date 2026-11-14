@@ -289,11 +289,10 @@ function bench(options: BenchOptions = {}) {
   if (options.conversation !== false) ctx.provide('conversation', { input: { requestDraftInitialization } })
   const layout = new LayoutController({
     selectPanel: vi.fn(), retainMainPanels: vi.fn(),
-    setSidebar: vi.fn(), toggleSidebar: vi.fn(), collapseSidebar: vi.fn(), setHeaderVisible: vi.fn(), setViewportWidth: vi.fn(),
+    setSidebar: vi.fn(), toggleSidebar: vi.fn(), setViewportWidth: vi.fn(),
     setRightbar: vi.fn(), openRightbar: vi.fn(), closeRightbar: vi.fn(),
   }, () => true, createSnapshotStore({ activePanelId: null }))
   const selectPanel = vi.spyOn(layout, 'selectPanel')
-  const collapseSidebar = vi.spyOn(layout, 'collapseSidebar')
   ctx.provide('layout', layout)
   ctx.effect(() => () => { layout.dispose() })
   const directoryPicker = new FakeDirectoryPicker()
@@ -311,10 +310,7 @@ function bench(options: BenchOptions = {}) {
     view.actions,
     notify,
   )
-  return {
-    ctx, directoryPicker, sessions, uiWorkspace, workspaces, layout, selectPanel, collapseSidebar,
-    view, notify, requestDraftInitialization,
-  }
+  return { ctx, directoryPicker, sessions, uiWorkspace, workspaces, layout, selectPanel, view, notify, requestDraftInitialization }
 }
 
 function lastOpening(open: MockInstance<UiWorkspaceService['openWorkspace']>): Promise<void> {
@@ -434,39 +430,7 @@ describe('UiWorkspaceService', () => {
     expect(b.sessions.refreshProjections).not.toHaveBeenCalled()
   })
 
-  it('collapses the sidebar for every user navigation that reaches the main view', async () => {
-    const opened = bench({ sessions: sessionState([summary('current')]) })
-    opened.uiWorkspace.openSession(sid('current'))
-    expect(opened.collapseSidebar).toHaveBeenCalledOnce()
-
-    // A Workspace-backed New Session replaces the main view through the same
-    // user-gesture seam, so the sidebar yields there too.
-    const started = bench({
-      sessions: sessionState([]),
-      workspaces: workspaceState([workspace('a')]),
-    })
-    started.uiWorkspace.startSession(wid('a'))
-    await vi.waitFor(() => {
-      expect(started.sessions.retain).toHaveBeenLastCalledWith(sid('created-a'), { source: 'mainView' })
-    })
-    expect(started.collapseSidebar).toHaveBeenCalledOnce()
-
-    const switched = bench({
-      sessions: sessionState([], 'pending'),
-      workspaces: workspaceState([workspace('a')]),
-    })
-    await switched.uiWorkspace.openWorkspace(wid('a'))
-    expect(switched.collapseSidebar).toHaveBeenCalledOnce()
-
-    // New Session with no Workspace falls through to the blank-hero clear path.
-    const empty = bench()
-    empty.uiWorkspace.startSession()
-    expect(empty.selectPanel).toHaveBeenCalledWith(null)
-    expect(empty.collapseSidebar).toHaveBeenCalledOnce()
-  })
-
   it('keeps the current panel when retaining the target fails', () => {
-
     const b = bench()
     b.sessions.retain.mockImplementationOnce(() => { throw new Error('open failed') })
     expect(() => { b.uiWorkspace.openSession(sid('target')) }).toThrow('open failed')
@@ -1484,8 +1448,6 @@ describe('UiWorkspaceService', () => {
 
     expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(address, { source: 'mainView' })
     expect(b.sessions.refreshProjections).not.toHaveBeenCalled()
-    // Startup restoration opens with 'preserve': it keeps the sidebar the user left open.
-    expect(b.collapseSidebar).not.toHaveBeenCalled()
   })
 
   it('persists a catalog-resolved address after string subagent navigation', () => {
