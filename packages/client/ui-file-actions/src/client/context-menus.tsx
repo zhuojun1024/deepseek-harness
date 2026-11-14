@@ -5,7 +5,7 @@ import type {} from '@deepseek-ai/dsh-api-workspace-files/remote'
 import type {} from '@deepseek-ai/dsh-api-session-controller/remote'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { FileActions, FileActionSource } from '../types.ts'
-import { fileMediaUrl, workspaceFileDownloadUrl } from '@deepseek-ai/dsh-util-workspace-path'
+import { workspaceFileDownloadUrl } from '@deepseek-ai/dsh-util-workspace-path'
 import { startAttachmentDownload } from './files.ts'
 import mime from 'mime'
 import type { FileActionKey } from './locales.ts'
@@ -48,20 +48,13 @@ export function registerFileMenus(ctx: Context, actions: FileActions, t: (key: F
   }
   ctx.effect(() => ctx.contextMenus.register({
     id: 'file-actions.file', target: 'file', order: 200,
-    resolve: async ({ sessionId, path }, signal) => {
-      let absolutePath: string | undefined
-      try {
-        const result = await ctx.remote.workspaceFiles.stat(sessionId, path, signal)
-        absolutePath = result.ok ? result.value.absolutePath : undefined
-      } catch (_error) {
-        // Failed metadata disables operations that require the source file.
-        signal.throwIfAborted()
-      }
-      signal.throwIfAborted()
-      const available = absolutePath !== undefined
+    resolve: ({ sessionId, path }) => {
+      // This menu addresses the file by session and workspace path alone: the
+      // download route owns the bytes, so resolution never waits on the Host.
+      const attachmentUrl = workspaceFileDownloadUrl(document.baseURI, sessionId, path)
       const mediaType = mime.getType(path) ?? ''
       const source: FileActionSource = {
-        url: fileMediaUrl(document.baseURI, absolutePath ?? path) ?? path,
+        url: attachmentUrl ?? path,
         name: path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1),
         mediaType,
         read: read(sessionId, path, mediaType, 'Original file unavailable'),
@@ -69,24 +62,23 @@ export function registerFileMenus(ctx: Context, actions: FileActions, t: (key: F
       return [
         ...mediaType.startsWith('image/') ? [
           { id: 'copyImage', icon: { key: 'file-actions.copy' }, separatorBefore: true, failureLabel: t('menu.copyFailed'),
-            label: t('menu.copyImage'), disabled: !available, run: () => copy(source) },
+            label: t('menu.copyImage'), run: () => copy(source) },
         ] : [],
         ...mediaType.startsWith('image/') || !actions.canSaveAs ? [
           { id: 'download', icon: { key: 'file-actions.download' }, failureLabel: t('menu.saveFailed'),
-            label: t('menu.download'), disabled: !available, run: async () => {
-              const url = workspaceFileDownloadUrl(document.baseURI, sessionId, path)
-              if (url === undefined) throw new Error('Download route unavailable')
+            label: t('menu.download'), run: async () => {
+              if (attachmentUrl === undefined) throw new Error('Download route unavailable')
               lifetime.signal.throwIfAborted()
-              const probe = await fetch(url, { method: 'HEAD', signal: lifetime.signal })
+              const probe = await fetch(attachmentUrl, { method: 'HEAD', signal: lifetime.signal })
               lifetime.signal.throwIfAborted()
               if (!probe.ok) throw new Error(`Download failed: HTTP ${probe.status}`)
-              startAttachmentDownload(url, source.name ?? path)
+              startAttachmentDownload(attachmentUrl, source.name ?? path)
               ctx.contextMenus.notify(t('menu.downloadStarted'), true)
             } },
         ] : [],
         ...actions.canSaveAs ? [
           { id: 'saveAs', icon: { key: 'file-actions.save' }, failureLabel: t('menu.saveFailed'), label: t('menu.saveAs'),
-            disabled: !available, run: () => save(source, 'saveAs') },
+            run: () => save(source, 'saveAs') },
         ] : [],
       ]
     },

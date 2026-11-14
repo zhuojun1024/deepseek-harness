@@ -22,10 +22,8 @@ it('contributes file and image operations without open-in-app and withdraws them
   const registerLocale = vi.fn(() => () => {})
   ctx.provide('locale', { register: registerLocale, bind: () => (key: string) => key } as never)
   const readBytes = vi.fn(async () => ({ ok: true as const, value: { data: [1, 2, 3] } }))
-  const workspaceFiles = {
-    stat: async () => ({ ok: true, value: { absolutePath: '/workspace/image.png' } }),
-    readBytes,
-  }
+  const stat = vi.fn(async () => ({ ok: true as const, value: { absolutePath: '/workspace/image.png' } }))
+  const workspaceFiles = { stat, readBytes }
   const session = { openWorkspacePath: vi.fn() }
   runtime.remote.provideNamespaces({ workspaceFiles, session })
   const fiber = ctx.plugin({ apply })
@@ -40,7 +38,8 @@ it('contributes file and image operations without open-in-app and withdraws them
     expect(file.source.getSnapshot().map(action => action.id)).toEqual([
       'file-actions.file/copyImage', 'file-actions.file/download',
     ])
-    expect(file.source.getSnapshot().find(action => action.id.endsWith('/download'))?.disabled).toBe(false)
+    expect(stat).not.toHaveBeenCalled()
+    expect(file.source.getSnapshot().find(action => action.id.endsWith('/download'))?.disabled).not.toBe(true)
     const save = vi.spyOn(ctx.fileActions, 'save').mockImplementation(async (source: FileActionSource) => {
       await source.read!(new AbortController().signal)
       return { status: 'requested' }

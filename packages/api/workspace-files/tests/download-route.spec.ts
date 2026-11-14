@@ -118,7 +118,7 @@ describe('Workspace file download route', () => {
       expect(named.status).toBe(200)
       expect(named.headers.get('content-disposition'))
         .toBe(`attachment; filename="__ __.txt"; filename*=UTF-8''${encodeURIComponent('测试 文件.txt')}`)
-      harness.disposers.forEach(dispose => dispose())
+      harness.disposers.forEach((dispose) => { dispose() })
       expect(harness.route()).toBeUndefined()
     } finally {
       await harness.dispose()

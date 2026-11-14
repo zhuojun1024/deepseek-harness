@@ -81,32 +81,31 @@ export function registerContextMenus(
     resolve: async (target, signal) => {
       const { sessionId, path, line } = target
       await paths.load()
-      const absolutePath = await resolvePath(sessionId, path, signal)
-      const available = absolutePath !== undefined
-      const desktop = paths.desktop.getSnapshot() === true && available
+      // The cwd the session reports is the whole answer: no Host read feeds this menu.
+      const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
+      const absolutePath = resolveWorkspacePath(cwd, path)
+      const desktop = paths.desktop.getSnapshot() === true
       const apps = desktop ? await paths.applications(absolutePath, signal) : []
       signal.throwIfAborted()
       const application = apps?.find(app => app.default)
       // The menu names a host, not the pane it was raised in: a floating pane is never a docked landing place.
       const openIn = (destination: 'sidebar' | 'float') => () => {
-        const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
         ctx.sidebarRight.openResourceIn(sessionId, fileAddressFor(sessionId, cwd, path), {
           destination, ...(line === undefined ? {} : { params: { line } }),
         })
       }
       return [
-        { id: 'sidebar', icon: { key: 'open-in-app.sidebar' }, label: t('menu.openInSidebar'), disabled: !available, run: openIn('sidebar') },
-        { id: 'float', icon: { key: 'open-in-app.float' }, label: t('menu.openInFloat'), disabled: !available, run: openIn('float') },
+        { id: 'sidebar', icon: { key: 'open-in-app.sidebar' }, label: t('menu.openInSidebar'), run: openIn('sidebar') },
+        { id: 'float', icon: { key: 'open-in-app.float' }, label: t('menu.openInFloat'), run: openIn('float') },
         { id: 'reveal', icon: { key: 'open-in-app.reveal' }, label: fileManager(), disabled: !desktop,
-          ...absolutePath === undefined ? {} : { run: () => open(absolutePath, 'reveal') } },
+          ...desktop ? { run: () => open(absolutePath, 'reveal') } : {} },
         { id: 'open', label: application ? t('open.title', { app: application.name }) : t('menu.defaultApp'),
           icon: { key: 'open-in-app.application', ...application?.icon ? { src: application.icon } : {} },
           disabled: application === undefined,
-          ...absolutePath === undefined || application === undefined ? {} : { run: () => open(absolutePath, 'open', application.id) } },
+          ...application === undefined ? {} : { run: () => open(absolutePath, 'open', application.id) } },
         { id: 'copyPath', icon: { key: 'open-in-app.copy' }, failureLabel: t('menu.copyFailed'), label: t('menu.copyPath'),
           run: async () => {
-            const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
-            await navigator.clipboard.writeText(absolutePath ?? resolveWorkspacePath(cwd, path))
+            await navigator.clipboard.writeText(absolutePath)
             ctx.contextMenus.notify(t('menu.copied'), true)
           } },
       ]

@@ -126,16 +126,14 @@ it('routes file actions through an explicit host, the line, native association a
   expect(h.sidebar.openResourceIn).toHaveBeenLastCalledWith(SessionId('absent'), expect.any(String), { destination: 'float' })
 })
 
-it('keeps copy-path available on failed metadata and reports native action failures', async () => {
+it('resolves without a Host metadata read and reports native action failures', async () => {
   const h = await boot()
   const file = { kind: 'file', value: { sessionId, path: 'file.svg' } } as const
-  h.remote.workspaceFiles.stat.mockResolvedValueOnce({ ok: false } as never).mockResolvedValueOnce({ ok: false } as never)
   const menu = await h.resolve(file)
-  expect(menu.source.getSnapshot().find(item => item.id.endsWith('/saveAs'))?.disabled).toBe(true)
+  expect(h.remote.workspaceFiles.stat).not.toHaveBeenCalled()
+  expect(menu.source.getSnapshot().find(item => item.id.endsWith('/saveAs'))?.disabled).not.toBe(true)
   menu.select('open-in-app.file/copyPath')
   expect(h.writeText).toHaveBeenCalledWith('/workspace/file.svg')
-  h.remote.workspaceFiles.stat.mockRejectedValueOnce(new Error('offline')).mockRejectedValueOnce(new Error('offline'))
-  expect((await h.resolve(file)).source.getSnapshot().find(item => item.id.endsWith('/sidebar'))?.disabled).toBe(true)
   h.remote.session.openWorkspacePath.mockResolvedValueOnce({ ok: false } as never)
   await h.choose(file, 'open-in-app.file/reveal')
   await vi.waitFor(() => { expect(h.report).toHaveBeenLastCalledWith({ kind: 'failed', failure: 'revealError' }) })
